@@ -11,7 +11,7 @@ class BookController extends Controller
     // Show all books
     public function index()
     {
-        $books = Book::with('bookCopies')->get();
+        $books = Book::with(['bookCopies', 'borrowings'])->get();
         $borrowings = Borrowing::with('book')->get();
 
         return view('books.index', compact('books', 'borrowings'));
@@ -19,36 +19,33 @@ class BookController extends Controller
 
     // Store a new book
     public function store(Request $request)
-{
-    $validated = $request->validate([
-        'title' => 'required|string|max:255',
-        'author' => 'required|string|max:255',
-        'copies' => 'nullable|integer|min:1|max:10',
-        'barcode' => 'nullable|string|unique:books,barcode'
-    ]);
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'author' => 'required|string|max:255',
+            'copies' => 'nullable|integer|min:1|max:10',
+            'barcode' => 'nullable|string|unique:books,barcode'
+        ]);
 
-    $bookData = [
-        'title' => $validated['title'],
-        'author' => $validated['author'],
-        'copies' => $validated['copies'] ?? 1,
-        // ensure available_copies is set to the initial copies count
-        'available_copies' => $validated['copies'] ?? 1,
-    ];
+        $bookData = [
+            'title' => $validated['title'],
+            'author' => $validated['author'],
+            'copies' => $validated['copies'] ?? 1,
+            'available_copies' => $validated['copies'] ?? 1,
+        ];
 
-    // If barcode is provided, use it; otherwise it will be auto-generated
-    if (!empty($validated['barcode'])) {
-        $bookData['barcode'] = $validated['barcode'];
+        if (!empty($validated['barcode'])) {
+            $bookData['barcode'] = $validated['barcode'];
+        }
+
+        $book = Book::create($bookData);
+
+        if (!empty($book->copies) && $book->copies > 0) {
+            $book->createCopies((int) $book->copies);
+        }
+
+        return redirect()->back()->with('success', 'Book added successfully with ' . $book->copies . ' copies!');
     }
-
-    $book = Book::create($bookData);
-
-    // Create BookCopy records for the number of copies specified
-    if (!empty($book->copies) && $book->copies > 0) {
-        $book->createCopies((int) $book->copies);
-    }
-
-    return redirect()->back()->with('success', 'Book added successfully with ' . $book->copies . ' copies!');
-}
 
     // Show the edit form
     public function edit($id)
@@ -67,10 +64,9 @@ class BookController extends Controller
         ]);
 
         $book = Book::findOrFail($id);
-        // If copies provided, also adjust available_copies accordingly (keep existing borrowed count)
+
         if (isset($validated['copies'])) {
             $newCopies = (int) $validated['copies'];
-            // Recalculate available_copies conservatively: if there are active borrowings, don't increase available beyond copies minus borrowed
             $borrowed = $book->borrowings()->whereNull('returned_at')->count();
             $validated['available_copies'] = max(0, $newCopies - $borrowed);
         }
@@ -88,7 +84,7 @@ class BookController extends Controller
 
         return redirect()->back()->with('success', 'Book deleted successfully!');
     }
-    
+
     // Get current active borrowing for this book
     public function getBookStatus($bookId)
     {
@@ -117,22 +113,93 @@ class BookController extends Controller
     }
 
     // Scan barcode and return book status
-public function scanBarcode(Request $request)
-{
-    $barcode = $request->input('barcode');
-    
-    // Handle short format: BK + book ID
-    if (preg_match('/^BK(\d+)$/', $barcode, $matches)) {
-        $bookId = $matches[1];
-        $book = Book::find($bookId);
-        
+    public function scanBarcode(Request $request)
+    {
+        $barcode = $request->input('barcode');
+
+        if (preg_match('/^BK(\d+)$/', $barcode, $matches)) {
+            $bookId = $matches[1];
+            $book = Book::find($bookId);
+
+            if ($book) {
+                if ($book->copies <= 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This book is currently not available for borrowing.'
+                    ], 422);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'book' => [
+                        'id' => $book->id,
+                        'title' => $book->title,
+                        'author' => $book->author,
+                        'barcode' => $book->barcode,
+                        'copies' => $book->copies,
+                        'available_copies' => $book->available_copies,
+                        'is_available' => $book->is_available
+                    ],
+                    'action' => 'borrow'
+                ]);
+            }
+        }
+
+        $book = Book::where('barcode', $barcode)->first();
+
+        if (!$book) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Book not found with this barcode.'
+            ], 404);
+        }
+    }
+
+    // Generate barcode sticker for book
+    public function generateBookBarcode($id)
+    {
+        $book = Book::findOrFail($id);
+        return view('books.barcode-sticker', compact('book'));
+    }
+
+    public function searchByBarcode(Request $request)
+    {
+        $barcode = $request->query('barcode');
+
+        if (!$barcode) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No barcode provided'
+            ]);
+        }
+
+        $book = Book::where('barcode', $barcode)
+                    ->orWhere('id', $barcode)
+                    ->first();
+
         if ($book) {
-            // Continue with your existing logic...
-            if ($book->copies <= 0) {
+            return response()->json([
+                'success' => true,
+                'book' => $book
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Book not found'
+        ]);
+    }
+
+    public function getScanData($bookId)
+    {
+        try {
+            $book = Book::find($bookId);
+
+            if (!$book) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'This book is currently not available for borrowing.'
-                ], 422);
+                    'message' => 'Book not found'
+                ]);
             }
 
             return response()->json([
@@ -141,120 +208,105 @@ public function scanBarcode(Request $request)
                     'id' => $book->id,
                     'title' => $book->title,
                     'author' => $book->author,
-                    'barcode' => $book->barcode,
                     'copies' => $book->copies,
-                    'available_copies' => $book->available_copies,
-                    'is_available' => $book->is_available
-                ],
-                'action' => 'borrow'
+                    'available_copies' => $book->available_copies ?? $book->copies,
+                ]
             ]);
-        }
-    }
-    
-    // Try to find book by original barcode (for backward compatibility)
-    $book = Book::where('barcode', $barcode)->first();
-
-    if (!$book) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Book not found with this barcode.'
-        ], 404);
-    }
-}
-
-    // Generate barcode sticker for book
-    public function generateBookBarcode($id)
-    {
-        $book = Book::findOrFail($id);
-        
-        return view('books.barcode-sticker', compact('book'));
-    }
-    public function searchByBarcode(Request $request)
-{
-    $barcode = $request->query('barcode');
-    
-    if (!$barcode) {
-        return response()->json([
-            'success' => false,
-            'message' => 'No barcode provided'
-        ]);
-    }
-    
-    $book = Book::where('barcode', $barcode)
-                ->orWhere('id', $barcode)
-                ->first();
-    
-    if ($book) {
-        return response()->json([
-            'success' => true,
-            'book' => $book
-        ]);
-    }
-    
-    return response()->json([
-        'success' => false,
-        'message' => 'Book not found'
-    ]);
-}
-public function getScanData($bookId)
-{
-    try {
-        $book = Book::find($bookId);
-        
-        if (!$book) {
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Book not found'
+                'message' => 'Error fetching book data'
             ]);
         }
-        
-        return response()->json([
-            'success' => true,
-            'book' => [
-                'id' => $book->id,
-                'title' => $book->title,
-                'author' => $book->author,
-                'copies' => $book->copies,
-                'available_copies' => $book->available_copies ?? $book->copies,
-            ]
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error fetching book data'
-        ]);
     }
-}
-public function barcodeSticker($id)
-{
-    $book = Book::findOrFail($id);
-    return view('books.barcode-sticker', compact('book'));
-}
 
-public function getBookCopies($id)
-{
-    try {
-        $book = Book::with('bookCopies')->findOrFail($id);
-        
-        $copies = $book->bookCopies->map(function ($copy) {
-            return [
-                'id' => $copy->id,
-                'copy_number' => $copy->copy_number ?? 'Copy',
-                'barcode' => $copy->barcode,
-                'status' => $copy->status,
-                'normalized_barcode' => \App\Models\BookCopy::normalizeBarcode($copy->barcode)
-            ];
-        });
-        
-        return response()->json([
-            'success' => true,
-            'copies' => $copies
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error fetching copies: ' . $e->getMessage()
-        ], 500);
+    public function barcodeSticker($id)
+    {
+        $book = Book::findOrFail($id);
+        return view('books.barcode-sticker', compact('book'));
     }
-}
+
+    public function getBookCopies($id)
+    {
+        try {
+            $book = Book::with('bookCopies')->findOrFail($id);
+
+            $copies = $book->bookCopies->map(function ($copy) {
+                return [
+                    'id' => $copy->id,
+                    'copy_number' => $copy->copy_number ?? 'Copy',
+                    'barcode' => $copy->barcode,
+                    'status' => $copy->status,
+                    'normalized_barcode' => \App\Models\BookCopy::normalizeBarcode($copy->barcode)
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'copies' => $copies
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching copies: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    // Return full borrow history for a book as JSON (used by AJAX history modal)
+    public function getBookHistory($id)
+    {
+        try {
+            $book = Book::findOrFail($id);
+
+            $history = Borrowing::where('book_id', $id)
+                ->orderBy('borrowed_at', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function ($record) {
+                    $isOverdue = !$record->returned_at
+                        && $record->due_date
+                        && now()->greaterThan($record->due_date);
+
+                    return [
+                        'id'           => $record->id,
+                        'student_name' => $record->student_name,
+                        'course'       => $record->course,
+                        'section'      => $record->section,
+                        'borrowed_at'  => $record->borrowed_at
+                            ? $record->borrowed_at->setTimezone('Asia/Manila')->toISOString()
+                            : ($record->created_at
+                                ? $record->created_at->setTimezone('Asia/Manila')->toISOString()
+                                : null),
+                        'due_date'     => $record->due_date
+                            ? $record->due_date->toDateString()
+                            : null,
+                        'returned_at'  => $record->returned_at
+                            ? $record->returned_at->setTimezone('Asia/Manila')->toISOString()
+                            : null,
+                        'is_overdue'   => $isOverdue,
+                    ];
+                });
+
+            return response()->json([
+                'success'          => true,
+                'book_id'          => $book->id,
+                'book_title'       => $book->title,
+                'available_copies' => $book->available_copies,
+                'total_copies'     => $book->copies,
+                'history'          => $history,
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Book not found.',
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching history: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }

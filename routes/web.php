@@ -49,6 +49,7 @@ Route::middleware(['auth:librarian'])->group(function () {
     Route::resource('books', BookController::class);
     Route::get('/books/{bookId}/borrowing-data', [BookController::class, 'getBorrowingData'])->name('books.borrowing.data');
     Route::get('/books/{id}/copies', [BookController::class, 'getBookCopies'])->name('books.copies');
+    Route::get('/books/{id}/history', [BookController::class, 'getBookHistory'])->name('books.history');
     
     // Barcode Routes
     Route::post('/books/scan-barcode', [BookController::class, 'scanBarcode'])->name('books.scan.barcode');

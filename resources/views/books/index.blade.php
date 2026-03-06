@@ -155,6 +155,57 @@
         letter-spacing: .6px; color: #6c757d; margin-bottom: .6rem;
     }
 
+    /* ── History list items ── */
+    .history-list-item {
+        border-bottom: 1px solid #e9ecef;
+        padding: 0.9rem 0.25rem;
+        font-size: 0.9rem;
+    }
+    .history-list-item:last-child { border-bottom: none; }
+
+    .history-status-returned {
+        display: inline-block;
+        background: #d1e7dd;
+        color: #0a3622;
+        border: 1px solid #a3cfbb;
+        border-radius: 0.4rem;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+    .history-status-active {
+        display: inline-block;
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+        border-radius: 0.4rem;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+    .history-status-overdue {
+        display: inline-block;
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c2c7;
+        border-radius: 0.4rem;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+
+    .history-summary-bar {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+        padding: 0.75rem 1rem;
+        background: #f8f9fa;
+        border-radius: 0.6rem;
+        font-size: 0.85rem;
+    }
+    .history-summary-bar span { font-weight: 700; }
+
     /* ── List items ── */
     .list-group-item {
         background: transparent; border: none;
@@ -216,9 +267,8 @@
 <div class="row g-3" id="availableBooks">
     @foreach($books as $book)
         @php
-            $bookHistory      = $borrowings->where('book_id', $book->id);
-            $returnedCount    = $bookHistory->whereNotNull('returned_at')->count();
-            $notReturnedCount = $bookHistory->whereNull('returned_at')->count();
+            // Only used for initial badge render — not for history display
+            $notReturnedCount = $book->borrowings->whereNull('returned_at')->count();
         @endphp
 
         {{-- ══════════════════════════════════════════
@@ -337,6 +387,7 @@
 
                         <div class="d-flex flex-column gap-2">
 
+                            {{-- History button now opens a separate AJAX-powered modal --}}
                             <button class="btn btn-warning btn-sm w-100"
                                     data-bs-toggle="modal"
                                     data-bs-target="#historyModal{{ $book->id }}"
@@ -380,53 +431,35 @@
         </div>
 
         {{-- ══════════════════════════════════════════
-             HISTORY MODAL
+             HISTORY MODAL — fully AJAX-driven
+             Loads live data every time it opens so
+             returned records are NEVER lost/hidden.
         ══════════════════════════════════════════ --}}
         <div class="modal fade" id="historyModal{{ $book->id }}" tabindex="-1"
-             aria-labelledby="historyModalLabel{{ $book->id }}" aria-hidden="true">
+             aria-labelledby="historyModalLabel{{ $book->id }}" aria-hidden="true"
+             data-book-id="{{ $book->id }}">
             <div class="modal-dialog modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="historyModalLabel{{ $book->id }}">
-                            Borrow History — {{ $book->title }}
+                            📋 Full Borrow History — {{ $book->title }}
                         </h5>
                         <button type="button" class="btn-close btn-close-white"
                                 data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="modal-body">
-                        @if($bookHistory->count() > 0)
-                            <p class="fw-semibold">
-                                Total Borrowed:
-                                <span class="text-primary">{{ $bookHistory->count() }}</span> time(s)
-                            </p>
-                            <canvas id="historyChart{{ $book->id }}" height="100"></canvas>
-                            <hr>
-                            <ul class="list-group list-group-flush">
-                                @foreach($bookHistory as $history)
-                                    <li class="list-group-item">
-                                        <strong>{{ $history->student_name }}</strong><br>
-                                        <small>
-                                            Borrowed on
-                                            {{ \Carbon\Carbon::parse($history->borrowed_at ?? $history->created_at)
-                                                ->timezone('Asia/Manila')->format('M d, Y - h:i A') }}
-                                        </small>
-                                        @if($history->returned_at)
-                                            <br><span class="text-success">
-                                                Returned on
-                                                {{ \Carbon\Carbon::parse($history->returned_at)
-                                                    ->timezone('Asia/Manila')->format('M d, Y - h:i A') }}
-                                            </span>
-                                        @else
-                                            <br><span class="text-danger">Not yet returned</span>
-                                        @endif
-                                    </li>
-                                @endforeach
-                            </ul>
-                        @else
-                            <p class="text-muted text-center mb-0">No borrow history for this book.</p>
-                        @endif
+                    {{-- Body is injected by JS on modal open --}}
+                    <div class="modal-body" id="historyModalBody{{ $book->id }}">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="modal-footer">
+                    <div class="modal-footer d-flex justify-content-between align-items-center">
+                        <a href="{{ route('book-history.index') }}?search={{ urlencode($book->title) }}"
+                           target="_blank" class="btn btn-light btn-sm">
+                            Open Full History Page ↗
+                        </a>
                         <button type="button" class="btn btn-secondary"
                                 data-bs-dismiss="modal">Close</button>
                     </div>
@@ -463,38 +496,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- Chart init for this book -->
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                const ctx = document.getElementById('historyChart{{ $book->id }}');
-                if (ctx) {
-                    new Chart(ctx, {
-                        type: 'pie',
-                        data: {
-                            labels: ['Available', 'Borrowed'],
-                            datasets: [{
-                                data: [{{ $book->copies }}, {{ $notReturnedCount }}],
-                                backgroundColor: ['#078b24', '#ff4d4d'],
-                                borderColor: '#fff',
-                                borderWidth: 2
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: {
-                                legend: { position: 'bottom' },
-                                title: {
-                                    display: true,
-                                    text: 'Available vs Borrowed Copies',
-                                    font: { size: 14 }
-                                }
-                            }
-                        }
-                    });
-                }
-            });
-        </script>
 
     @endforeach
 </div><!-- /#availableBooks -->
@@ -559,10 +560,158 @@ document.addEventListener("DOMContentLoaded", function () {
         positionClass: "toast-top-right", timeOut: "5000"
     };
 
-    /* ── Load copies when copiesModal opens ── */
+    /* ══════════════════════════════════════════════════════
+       HISTORY MODAL — load fresh data from server every open
+       This guarantees returned records are NEVER missing.
+    ══════════════════════════════════════════════════════ */
     document.addEventListener('show.bs.modal', function (e) {
         const modal  = e.target;
         const bookId = modal.getAttribute('data-book-id');
+
+        /* ── History modal ── */
+        if (bookId && modal.id.startsWith('historyModal')) {
+            const body = document.getElementById(`historyModalBody${bookId}`);
+            if (!body) return;
+
+            // Always show spinner + re-fetch so data is always live
+            body.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted small">Loading full history…</p>
+                </div>`;
+
+            fetch(`/books/${bookId}/history`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(r => {
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                return r.json();
+            })
+            .then(data => {
+                if (!data.success) {
+                    body.innerHTML = `<p class="text-danger text-center py-3">
+                        ⚠ Could not load history: ${data.message ?? 'Unknown error'}</p>`;
+                    return;
+                }
+
+                const records = data.history;   // full array, ALL statuses
+                const total    = records.length;
+                const active   = records.filter(r => !r.returned_at).length;
+                const returned = records.filter(r =>  r.returned_at).length;
+
+                if (total === 0) {
+                    body.innerHTML = `
+                        <div class="text-center py-4 text-muted">
+                            <div style="font-size:2.5rem;opacity:.4">📭</div>
+                            <p class="mt-2">No borrow history yet for this book.</p>
+                        </div>`;
+                    return;
+                }
+
+                /* Summary bar */
+                let html = `
+                    <div class="history-summary-bar">
+                        <div>Total borrows: <span class="text-primary">${total}</span></div>
+                        <div>Currently out: <span style="color:#856404">${active}</span></div>
+                        <div>Returned: <span style="color:#0a3622">${returned}</span></div>
+                    </div>`;
+
+                /* Pie chart placeholder */
+                html += `<canvas id="ajaxHistoryChart${bookId}" height="110" class="mb-3"></canvas>`;
+
+                /* Records list — newest first */
+                html += `<div>`;
+                records.forEach(record => {
+                    const borrowedDate = record.borrowed_at
+                        ? new Date(record.borrowed_at).toLocaleString('en-PH', {
+                            month: 'short', day: 'numeric', year: 'numeric',
+                            hour: 'numeric', minute: '2-digit', hour12: true })
+                        : 'N/A';
+
+                    let statusBadge = '';
+                    let returnedLine = '';
+
+                    if (record.returned_at) {
+                        const returnedDate = new Date(record.returned_at).toLocaleString('en-PH', {
+                            month: 'short', day: 'numeric', year: 'numeric',
+                            hour: 'numeric', minute: '2-digit', hour12: true });
+                        statusBadge  = `<span class="history-status-returned">✓ Returned</span>`;
+                        returnedLine = `<div class="mt-1" style="color:#0a3622;font-size:.82rem;">
+                                            ↩ Returned: ${returnedDate}</div>`;
+                    } else if (record.is_overdue) {
+                        statusBadge = `<span class="history-status-overdue">⚠ Overdue</span>`;
+                    } else {
+                        statusBadge = `<span class="history-status-active">📖 Active</span>`;
+                    }
+
+                    const dueDate = record.due_date
+                        ? new Date(record.due_date).toLocaleDateString('en-PH', {
+                            month: 'short', day: 'numeric', year: 'numeric' })
+                        : 'N/A';
+
+                    html += `
+                        <div class="history-list-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <strong style="color:#00402c">${escapeHtml(record.student_name)}</strong>
+                                    <div class="text-muted" style="font-size:.8rem;">
+                                        ${escapeHtml(record.course)} — ${escapeHtml(record.section)}
+                                    </div>
+                                </div>
+                                ${statusBadge}
+                            </div>
+                            <div class="mt-1" style="font-size:.82rem;color:#495057;">
+                                📅 Borrowed: ${borrowedDate}
+                                &nbsp;|&nbsp; Due: ${dueDate}
+                            </div>
+                            ${returnedLine}
+                        </div>`;
+                });
+                html += `</div>`;
+
+                body.innerHTML = html;
+
+                /* Render pie chart */
+                const ctx = document.getElementById(`ajaxHistoryChart${bookId}`);
+                if (ctx) {
+                    new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: ['Available', 'Currently Borrowed'],
+                            datasets: [{
+                                data: [data.available_copies, active],
+                                backgroundColor: ['#078b24', '#ff4d4d'],
+                                borderColor: '#fff',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { position: 'bottom' },
+                                title: {
+                                    display: true,
+                                    text: 'Available vs Currently Borrowed',
+                                    font: { size: 13 }
+                                }
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(err => {
+                body.innerHTML = `<p class="text-danger text-center py-3">
+                    ⚠ Error loading history. Please try again.<br>
+                    <small class="text-muted">${err.message}</small></p>`;
+            });
+        }
+
+        /* ── Copies modal (unchanged logic) ── */
         if (bookId && modal.id.startsWith('copiesModal')) {
             const modalBody = document.getElementById(`copiesModalBody${bookId}`);
             fetch(`/books/${bookId}/copies`)
@@ -603,7 +752,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    /* ── AJAX Borrow — delegated so it works inside the show modal ── */
+    /* ── AJAX Borrow ── */
     document.addEventListener('submit', function (e) {
         if (!e.target.classList.contains('borrow-form')) return;
         e.preventDefault();
@@ -644,7 +793,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     /* ── Update card + modal badges after borrow ── */
     function updateBookCard(bookId, availableCopies, activeBorrowings) {
-        // Card available badge
         const badge = document.getElementById(`available-badge-${bookId}`);
         if (badge) {
             if (availableCopies > 0) {
@@ -656,17 +804,14 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }
 
-        // Card in-use badge
         const inUseBadge = document.getElementById(`in-use-badge-${bookId}`);
         const inUseCount = document.getElementById(`in-use-count-${bookId}`);
         if (inUseCount) inUseCount.textContent = activeBorrowings;
         if (inUseBadge) inUseBadge.style.display = activeBorrowings > 0 ? '' : 'none';
 
-        // Modal in-use counts
         document.querySelectorAll(`.modal-in-use-${bookId}, #modal-in-use-count-${bookId}`)
             .forEach(el => el.textContent = activeBorrowings);
 
-        // If fully borrowed, swap form to disabled button inside show modal
         if (availableCopies < 1) {
             const showModal = document.getElementById(`showModal${bookId}`);
             if (showModal) {
@@ -793,6 +938,16 @@ document.addEventListener("DOMContentLoaded", function () {
     const barcodeReturnForm = document.getElementById('barcodeReturnForm');
     if (barcodeReturnForm) {
         barcodeReturnForm.addEventListener('submit', e => e.preventDefault());
+    }
+
+    /* ── XSS-safe helper ── */
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
     }
 });
 

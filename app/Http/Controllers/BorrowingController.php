@@ -135,24 +135,38 @@ class BorrowingController extends Controller
     public function returnBook(Borrowing $borrowing)
 {
     if ($borrowing->returned_at) {
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This book has already been returned.'
+            ], 422);
+        }
         return redirect()->route('borrowings.index')->with('error', 'This book has already been returned.');
     }
 
     DB::transaction(function () use ($borrowing) {
         $book = $borrowing->book;
-        $copy = $borrowing->bookCopy; // could be null
+        $copy = $borrowing->bookCopy;
 
-        // Update returned_at
+        // Save the exact returned_at timestamp
         $borrowing->update(['returned_at' => now()]);
 
-        // Only update the copy if it exists
         if ($copy) {
             $copy->update(['status' => 'available']);
         }
 
-        // Always increment book available_copies
         $book->increment('available_copies');
     });
+
+    if (request()->ajax() || request()->wantsJson()) {
+        return response()->json([
+            'success'     => true,
+            'message'     => 'Book returned successfully!',
+            'returned_at' => $borrowing->fresh()->returned_at
+                                ->setTimezone('Asia/Manila')
+                                ->format('M d, Y h:i A'),
+        ]);
+    }
 
     return redirect()->route('borrowings.index')->with('success', 'Book returned successfully!');
 }
