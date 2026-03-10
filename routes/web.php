@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\LibrarianAuthController;
 use App\Http\Controllers\BookController;
+use App\Http\Controllers\BookHistoryController;
 
 // Public Routes
 Route::get('/', [LibrarianAuthController::class, 'showLoginForm'])->name('home');
@@ -91,8 +92,8 @@ Route::middleware(['auth:librarian'])->group(function () {
         ]);
     })->name('copies.scan');
     
-    // Book History - Updated to show all borrowing history
-    Route::get('/book-history', [BorrowingController::class, 'bookHistory'])->name('book-history.index');
+    // Book History — dedicated controller, completely independent from BorrowingController
+    Route::get('/book-history', [BookHistoryController::class, 'index'])->name('book-history.index');
     
     // Real-time Data
     Route::get('/borrowings/realtime-data', [BorrowingController::class, 'getRealTimeData'])->name('borrowings.realtime.data');

@@ -264,65 +264,80 @@ html, body {
 
 <?php
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
+// Notification bell — uses DB::table() (raw query builder, no Eloquent model,
+// no accessors, no scope leakage). All variable names are prefixed __bell_ to
+// guarantee zero collision with $borrowings, $borrowing, $record, or any other
+// variable that child views or @foreach loops may use.
 $notificationList = [];
 
-if (isset($borrowings) && count($borrowings) > 0) {
-    foreach ($borrowings as $borrowing) {
-        if (!isset($borrowing->book)) continue;
+try {
+    $__bell_now = Carbon::now();
 
-        // Borrowed date (fallback to created_at)
-        $borrowedAt = Carbon::parse($borrowing->borrowed_at ?? $borrowing->created_at);
+    // Single JOIN query — one DB round-trip, no N+1, no Eloquent accessors firing
+    $__bell_rows = DB::table('borrowings')
+        ->join('books', 'borrowings.book_id', '=', 'books.id')
+        ->whereNull('borrowings.returned_at')
+        ->orderBy('borrowings.borrowed_at', 'asc')
+        ->select(
+            'borrowings.student_name',
+            'borrowings.borrowed_at',
+            'borrowings.created_at',
+            'books.title as book_title'
+        )
+        ->get();
 
-        // Always set due date to 14 days after borrowedAt
-        $dueDate = $borrowedAt->copy()->addDays(14);
+    foreach ($__bell_rows as $__bell_row) {
+        $__bell_borrowedAt          = Carbon::parse($__bell_row->borrowed_at ?? $__bell_row->created_at);
+        $__bell_totalAllowedSeconds = 14 * 86400;
+        $__bell_timeSpentSeconds    = $__bell_borrowedAt->diffInSeconds($__bell_now);
 
-        // Time spent since borrowing
-        $now = Carbon::now();
-        $timeSpentSeconds = $borrowedAt->diffInSeconds($now);
+        // Time spent
+        $__bell_spentDays    = floor($__bell_timeSpentSeconds / 86400);
+        $__bell_spentHours   = floor(($__bell_timeSpentSeconds % 86400) / 3600);
+        $__bell_spentMinutes = floor(($__bell_timeSpentSeconds % 3600) / 60);
+        $__bell_spendingTime = "{$__bell_spentDays}d {$__bell_spentHours}h {$__bell_spentMinutes}m";
 
-        // Convert time spent to days/hours/minutes
-        $spentDays = floor($timeSpentSeconds / 86400);
-        $spentHours = floor(($timeSpentSeconds % 86400) / 3600);
-        $spentMinutes = floor(($timeSpentSeconds % 3600) / 60);
-        $spendingTime = "{$spentDays}d {$spentHours}h {$spentMinutes}m"; // Shortened format
-
-        // Calculate remaining time from 14 days minus spent time
-        $totalAllowedSeconds = 14 * 86400;
-        $remainingSeconds = $totalAllowedSeconds - $timeSpentSeconds;
-
-        if ($remainingSeconds > 0) {
-            $remainingDays = floor($remainingSeconds / 86400);
-            $remainingHours = floor(($remainingSeconds % 86400) / 3600);
-            $remainingMinutes = floor(($remainingSeconds % 3600) / 60);
-            $remainingTime = "{$remainingDays}d {$remainingHours}h {$remainingMinutes}m"; // Shortened format
+        // Remaining time
+        $__bell_remainingSeconds = $__bell_totalAllowedSeconds - $__bell_timeSpentSeconds;
+        if ($__bell_remainingSeconds > 0) {
+            $__bell_remainingDays    = floor($__bell_remainingSeconds / 86400);
+            $__bell_remainingHours   = floor(($__bell_remainingSeconds % 86400) / 3600);
+            $__bell_remainingMinutes = floor(($__bell_remainingSeconds % 3600) / 60);
+            $__bell_remainingTime    = "{$__bell_remainingDays}d {$__bell_remainingHours}h {$__bell_remainingMinutes}m";
         } else {
-            $remainingTime = "Overdue";
-            $remainingDays = -floor(abs($remainingSeconds) / 86400); // Show negative days
+            $__bell_remainingDays = -floor(abs($__bell_remainingSeconds) / 86400);
+            $__bell_remainingTime = "Overdue";
         }
 
-        // Status color logic
-        if ($remainingDays > 7) {
-            $status = 'green'; // Safe
-        } elseif ($remainingDays >= 0) {
-            $status = 'yellow'; // Warning
-        } else {
-            $status = 'red'; // Overdue
-        }
+        // Color
+        if ($__bell_remainingDays > 7)      { $__bell_status = 'green';  }
+        elseif ($__bell_remainingDays >= 0) { $__bell_status = 'yellow'; }
+        else                                { $__bell_status = 'red';    }
 
         $notificationList[] = [
-            'borrower' => $borrowing->student_name,
-            'book' => $borrowing->book->title,
-            'author' => $borrowing->book->author,
-            'spendingTime' => $spendingTime,
-            'remainingTime' => $remainingTime,
-            'daysLeft' => $remainingDays,
-            'status' => $status
+            'borrower'      => $__bell_row->student_name,
+            'book'          => $__bell_row->book_title,
+            'spendingTime'  => $__bell_spendingTime,
+            'remainingTime' => $__bell_remainingTime,
+            'daysLeft'      => $__bell_remainingDays,
+            'status'        => $__bell_status,
         ];
     }
 
-    // Sort notifications by remaining days (overdue first)
+    // Sort: overdue/most urgent first
     usort($notificationList, fn($a, $b) => $a['daysLeft'] <=> $b['daysLeft']);
+
+    // Clean up — unset ALL local variables so nothing leaks into view scope
+    unset($__bell_now, $__bell_rows, $__bell_row, $__bell_borrowedAt,
+          $__bell_totalAllowedSeconds, $__bell_timeSpentSeconds,
+          $__bell_spentDays, $__bell_spentHours, $__bell_spentMinutes, $__bell_spendingTime,
+          $__bell_remainingSeconds, $__bell_remainingDays, $__bell_remainingHours,
+          $__bell_remainingMinutes, $__bell_remainingTime, $__bell_status);
+
+} catch (\Exception $e) {
+    $notificationList = [];
 }
 ?>
 
@@ -1012,5 +1027,4 @@ document.addEventListener('focusin', function(e) {
 });
 </script>
 </body>
-</html>
-<?php /**PATH C:\xampp\htdocs\project-name\resources\views/app.blade.php ENDPATH**/ ?>
+</html><?php /**PATH C:\xampp\htdocs\project-name\resources\views/app.blade.php ENDPATH**/ ?>
