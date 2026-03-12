@@ -39,10 +39,7 @@ class BookController extends Controller
         }
 
         $book = Book::create($bookData);
-
-        if (!empty($book->copies) && $book->copies > 0) {
-            $book->createCopies((int) $book->copies);
-        }
+        // BookCopy records are created automatically via the Book model's `static::created` boot hook.
 
         return redirect()->back()->with('success', 'Book added successfully with ' . $book->copies . ' copies!');
     }
@@ -78,13 +75,19 @@ class BookController extends Controller
 
     // Delete a book
     public function destroy($id)
-    {
-        $book = Book::findOrFail($id);
-        $book->delete();
+{
+    $book = Book::findOrFail($id);
 
-        return redirect()->back()->with('success', 'Book deleted successfully!');
+    foreach ($book->bookCopies as $copy) {  // ← FIX: use the relationship
+        $copy->borrowings()->delete();
+        $copy->delete();
     }
 
+    $book->borrowings()->delete();
+    $book->delete();
+
+    return redirect()->back()->with('success', 'Book deleted successfully!');
+}
     // Get current active borrowing for this book
     public function getBookStatus($bookId)
     {

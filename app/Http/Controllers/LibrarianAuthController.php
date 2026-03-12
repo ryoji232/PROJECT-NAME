@@ -18,7 +18,7 @@ class LibrarianAuthController extends Controller
 
     public function showLoginForm()
     {
-        return view('librarian.login');
+       return view('auth.login');
     }
 
     public function login(Request $request)
@@ -124,12 +124,12 @@ class LibrarianAuthController extends Controller
     // Add these new methods for profile management
     public function profile()
     {
-        return view('librarian.profile');
+        return view('profile.profile');
     }
 
     public function account()
     {
-        return view('librarian.account');
+       return view('profile.account');
     }
 
     public function updateProfile(Request $request)
@@ -212,7 +212,7 @@ class LibrarianAuthController extends Controller
             }
         }
 
-        return view('welcome', compact(
+        return view('dashboard.index', compact(
             'books', 
             'borrowings', 
             'recentBorrowings', 

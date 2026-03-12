@@ -1,0 +1,74 @@
+/* =============================================
+   login.css — Login Page Styles
+   ============================================= */
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+}
+
+html, body {
+    height: 100%;
+    font-family: 'Segoe UI', sans-serif;
+    background: url('/images/ieti-bg1.jpg') no-repeat center center fixed;
+    background-size: cover;
+    overflow: hidden;
+}
+
+.login-panel {
+    position: absolute;
+    bottom: 8%; right: 6%;
+    width: 900px;
+    background: #006400;
+    color: #fff;
+    padding: 170px 150px;
+    border-radius: 30px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.3);
+}
+
+.login-panel h1 {
+    margin-bottom: 1.9rem;
+    font-weight: 800;
+    color: #f8f9fa;
+    text-align: center;
+}
+
+.form-control {
+    border-radius: 10px;
+    padding: 12px 15px;
+    font-size: 1rem;
+}
+
+.btn-login {
+    background-color: #fff000;
+    border: none; border-radius: 12px;
+    font-weight: 600; font-size: 1.1rem;
+    padding: 12px 0; width: 50%;
+    transition: all 0.3s ease;
+    display: block; margin: 0 auto;
+}
+.btn-login:hover      { background-color: #cfee43; transform: scale(1.03); }
+.btn-login:disabled   { background-color: #6c757d; cursor: not-allowed; transform: none; }
+
+.attempts-warning {
+    background-color: #dc3545; color: #fff;
+    padding: 10px; border-radius: 5px;
+    margin-bottom: 15px; font-size: 0.9rem;
+}
+
+.lockout-message {
+    background-color: #ffc107; color: #856404;
+    padding: 15px; border-radius: 5px;
+    margin-bottom: 15px; font-weight: bold; text-align: center;
+}
+
+.lockout-timer { font-size: 1.2rem; font-weight: bold; color: #dc3545; }
+
+@media (max-width: 992px) {
+    .login-panel {
+        position: static;
+        width: 90%; margin: 50px auto;
+        padding: 60px 40px;
+        background: rgba(0, 100, 0, 0.95);
+    }
+}

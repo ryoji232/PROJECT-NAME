@@ -32,7 +32,6 @@
         margin-bottom: 2rem;
     }
 
-    /* ── Compact Book Cards ── */
     .book-card { margin-bottom: 1.5rem; }
 
     .book-card-inner {
@@ -64,7 +63,6 @@
     .badge.bg-secondary { background:#6c757d!important; font-size:.85rem; border-radius:.5rem; padding:.35em .75em; }
     .badge.bg-warning   { background:#ffc107!important; color:#212529!important; font-size:.85rem; border-radius:.5rem; padding:.35em .75em; }
 
-    /* ── SHOW button ── */
     .btn-show {
         background: #198754;
         color: #fff;
@@ -81,7 +79,6 @@
     }
     .btn-show:hover { background: #157347; transform: scale(1.02); color: #fff; }
 
-    /* ── Shared button styles ── */
     .btn-primary, .btn-success {
         background: #198754; border: none; border-radius: 8px;
         font-weight: 600; transition: all .2s; padding: 10px 18px; color: #fff;
@@ -130,7 +127,6 @@
 
     h2 { color: #00402c; font-weight: 700; margin-bottom: 1.5rem; }
 
-    /* ── All modals ── */
     .modal-content {
         border-radius: 1rem; border: 1px solid #dee2e6; background: #fff; color: #00402c;
     }
@@ -140,73 +136,40 @@
     }
     .modal-title { font-weight: 700; }
 
-    /* ── Show modal extras ── */
     .show-modal-header-sub { font-size: .88rem; opacity: .85; margin-top: .15rem; }
-
-    .show-modal-meta {
-        display: flex; gap: .6rem; flex-wrap: wrap;
-        align-items: center; margin-bottom: 1.2rem;
-    }
-
+    .show-modal-meta { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin-bottom: 1.2rem; }
     .show-modal-divider { border: none; border-top: 1px solid #dee2e6; margin: 1.1rem 0; }
-
     .action-section-label {
         font-size: .75rem; font-weight: 700; text-transform: uppercase;
         letter-spacing: .6px; color: #6c757d; margin-bottom: .6rem;
     }
 
-    /* ── History list items ── */
-    .history-list-item {
-        border-bottom: 1px solid #e9ecef;
-        padding: 0.9rem 0.25rem;
-        font-size: 0.9rem;
-    }
+    .history-list-item { border-bottom: 1px solid #e9ecef; padding: 0.9rem 0.25rem; font-size: 0.9rem; }
     .history-list-item:last-child { border-bottom: none; }
 
     .history-status-returned {
-        display: inline-block;
-        background: #d1e7dd;
-        color: #0a3622;
-        border: 1px solid #a3cfbb;
-        border-radius: 0.4rem;
-        padding: 0.2rem 0.5rem;
-        font-size: 0.78rem;
-        font-weight: 600;
+        display: inline-block; background: #d1e7dd; color: #0a3622;
+        border: 1px solid #a3cfbb; border-radius: 0.4rem;
+        padding: 0.2rem 0.5rem; font-size: 0.78rem; font-weight: 600;
     }
     .history-status-active {
-        display: inline-block;
-        background: #fff3cd;
-        color: #856404;
-        border: 1px solid #ffeaa7;
-        border-radius: 0.4rem;
-        padding: 0.2rem 0.5rem;
-        font-size: 0.78rem;
-        font-weight: 600;
+        display: inline-block; background: #fff3cd; color: #856404;
+        border: 1px solid #ffeaa7; border-radius: 0.4rem;
+        padding: 0.2rem 0.5rem; font-size: 0.78rem; font-weight: 600;
     }
     .history-status-overdue {
-        display: inline-block;
-        background: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c2c7;
-        border-radius: 0.4rem;
-        padding: 0.2rem 0.5rem;
-        font-size: 0.78rem;
-        font-weight: 600;
+        display: inline-block; background: #f8d7da; color: #721c24;
+        border: 1px solid #f5c2c7; border-radius: 0.4rem;
+        padding: 0.2rem 0.5rem; font-size: 0.78rem; font-weight: 600;
     }
 
     .history-summary-bar {
-        display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-        margin-bottom: 1rem;
-        padding: 0.75rem 1rem;
-        background: #f8f9fa;
-        border-radius: 0.6rem;
-        font-size: 0.85rem;
+        display: flex; gap: 0.75rem; flex-wrap: wrap;
+        margin-bottom: 1rem; padding: 0.75rem 1rem;
+        background: #f8f9fa; border-radius: 0.6rem; font-size: 0.85rem;
     }
     .history-summary-bar span { font-weight: 700; }
 
-    /* ── List items ── */
     .list-group-item {
         background: transparent; border: none;
         border-bottom: 1px solid #e3e3e3; color: #333;
@@ -214,8 +177,6 @@
     }
     .list-group-item:last-child { border-bottom: none; }
     .list-group-item strong { color: #198754; }
-    .list-group-item .text-danger  { color: #dc3545 !important; }
-    .list-group-item .text-success { color: #198754 !important; }
 
     .text-muted   { color: #6c757d !important; }
     .text-primary { color: #198754 !important; }
@@ -226,13 +187,13 @@
     }
 </style>
 
-<!-- Hero Section -->
+<!-- Hero -->
 <div class="hero-section">
     <h1>Book Resource Library</h1>
     <p>Borrow Today, Learn for a Lifetime</p>
 </div>
 
-<!-- Add Book Section -->
+<!-- Add Book -->
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>Add a New Book</h2>
     <a href="<?php echo e(route('dashboard')); ?>" class="btn btn-light">⬅ Dashboard</a>
@@ -256,7 +217,7 @@
     </div>
 </form>
 
-<!-- Available Books -->
+<!-- Books List -->
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 id="books">Available Books</h2>
     <div class="search-box">
@@ -266,10 +227,7 @@
 
 <div class="row g-3" id="availableBooks">
     <?php $__currentLoopData = $books; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $book): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-        <?php
-            // Only used for initial badge render — not for history display
-            $notReturnedCount = $book->borrowings->whereNull('returned_at')->count();
-        ?>
+        <?php $notReturnedCount = $book->borrowings->whereNull('returned_at')->count(); ?>
 
         
         <div class="col-md-4 book-card" data-book-id="<?php echo e($book->id); ?>" id="book-card-<?php echo e($book->id); ?>">
@@ -277,7 +235,6 @@
                 <div>
                     <h5 class="book-title"><?php echo e($book->title); ?></h5>
                     <small class="text-muted">by <?php echo e($book->author); ?></small>
-
                     <div class="mt-2 d-flex align-items-center gap-2 flex-wrap">
                         <?php if($book->available_copies > 0): ?>
                             <span class="badge bg-success available-badge" id="available-badge-<?php echo e($book->id); ?>">
@@ -289,22 +246,15 @@
                                 Fully Borrowed
                             </span>
                         <?php endif; ?>
-
                         <span class="badge bg-warning" id="in-use-badge-<?php echo e($book->id); ?>"
                               style="<?php echo e($notReturnedCount < 1 ? 'display:none;' : ''); ?>">
                             In Use: <span id="in-use-count-<?php echo e($book->id); ?>"><?php echo e($notReturnedCount); ?></span>
                         </span>
                     </div>
-
                     <small class="text-muted d-block mt-1" style="font-size:.75rem;">ID: <?php echo e($book->id); ?></small>
                 </div>
-
-                <!-- SHOW triggers the action modal -->
-                <button
-                    type="button"
-                    class="btn-show"
-                    data-bs-toggle="modal"
-                    data-bs-target="#showModal<?php echo e($book->id); ?>">
+                <button type="button" class="btn-show"
+                        data-bs-toggle="modal" data-bs-target="#showModal<?php echo e($book->id); ?>">
                     SHOW
                 </button>
             </div>
@@ -315,22 +265,14 @@
              aria-labelledby="showModalLabel<?php echo e($book->id); ?>" aria-hidden="true">
             <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
                 <div class="modal-content">
-
                     <div class="modal-header">
                         <div>
-                            <h5 class="modal-title" id="showModalLabel<?php echo e($book->id); ?>">
-                                <?php echo e($book->title); ?>
-
-                            </h5>
+                            <h5 class="modal-title" id="showModalLabel<?php echo e($book->id); ?>"><?php echo e($book->title); ?></h5>
                             <div class="show-modal-header-sub">by <?php echo e($book->author); ?></div>
                         </div>
-                        <button type="button" class="btn-close btn-close-white"
-                                data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
-
                     <div class="modal-body">
-
-                        <!-- Status badges -->
                         <div class="show-modal-meta">
                             <?php if($book->available_copies > 0): ?>
                                 <span class="badge bg-success">Available: <?php echo e($book->available_copies); ?></span>
@@ -340,38 +282,29 @@
                             <span class="badge bg-warning">
                                 In Use: <span class="modal-in-use-<?php echo e($book->id); ?>"><?php echo e($notReturnedCount); ?></span>
                             </span>
-                            <span class="badge"
-                                  style="background:#e0f2e9;color:#00402c;border:1px solid #c3e6cb;">
+                            <span class="badge" style="background:#e0f2e9;color:#00402c;border:1px solid #c3e6cb;">
                                 Total Copies: <?php echo e($book->copies); ?>
 
                             </span>
                         </div>
 
                         <hr class="show-modal-divider">
-
-                        <!-- ── BORROW ── -->
                         <div class="action-section-label">Borrow This Book</div>
 
                         <?php if($book->available_copies < 1): ?>
-                            <button class="btn btn-secondary w-100 mb-3" disabled>
-                                ALL COPIES BORROWED
-                            </button>
+                            <button class="btn btn-secondary w-100 mb-3" disabled>ALL COPIES BORROWED</button>
                         <?php else: ?>
                             <form class="borrow-form mb-3" data-book-id="<?php echo e($book->id); ?>">
                                 <?php echo csrf_field(); ?>
                                 <input type="hidden" name="book_id" value="<?php echo e($book->id); ?>">
                                 <div class="d-flex flex-column gap-2">
-                                    <input type="text" name="student_name"
-                                           class="form-control form-control-sm"
+                                    <input type="text" name="student_name" class="form-control form-control-sm"
                                            placeholder="Student Name" required>
-                                    <input type="text" name="course"
-                                           class="form-control form-control-sm"
+                                    <input type="text" name="course" class="form-control form-control-sm"
                                            placeholder="Course" required>
-                                    <input type="text" name="section"
-                                           class="form-control form-control-sm"
+                                    <input type="text" name="section" class="form-control form-control-sm"
                                            placeholder="Section" required>
-                                    <button type="submit"
-                                            class="btn btn-success btn-sm w-100 borrow-btn"
+                                    <button type="submit" class="btn btn-success btn-sm w-100 borrow-btn"
                                             data-book-id="<?php echo e($book->id); ?>">
                                         BORROW
                                     </button>
@@ -380,51 +313,32 @@
                         <?php endif; ?>
 
                         <hr class="show-modal-divider">
-
-                        <!-- ── Other actions ── -->
                         <div class="action-section-label">Book Actions</div>
-
                         <div class="d-flex flex-column gap-2">
-
-                            
                             <button class="btn btn-warning btn-sm w-100"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#historyModal<?php echo e($book->id); ?>"
+                                    data-bs-toggle="modal" data-bs-target="#historyModal<?php echo e($book->id); ?>"
                                     data-book-id="<?php echo e($book->id); ?>">
-                                IN USE
-                                (<span id="modal-in-use-count-<?php echo e($book->id); ?>"><?php echo e($notReturnedCount); ?></span>)
-                                — View History
+                                IN USE (<span id="modal-in-use-count-<?php echo e($book->id); ?>"><?php echo e($notReturnedCount); ?></span>) — View History
                             </button>
-
                             <button type="button" class="btn-info-custom btn-sm w-100"
-                                    data-bs-toggle="modal"
-                                    data-bs-target="#copiesModal<?php echo e($book->id); ?>">
+                                    data-bs-toggle="modal" data-bs-target="#copiesModal<?php echo e($book->id); ?>">
                                 VIEW COPIES &amp; BARCODES
                             </button>
-
-                            <a href="<?php echo e(route('books.edit', $book->id)); ?>"
-                               class="btn btn-primary btn-sm w-100">
+                            <a href="<?php echo e(route('books.edit', $book->id)); ?>" class="btn btn-primary btn-sm w-100">
                                 EDIT BOOK
                             </a>
-
-                            <form action="<?php echo e(route('books.destroy', $book->id)); ?>"
-                                  method="POST" class="delete-form">
-                                <?php echo csrf_field(); ?>
-                                <?php echo method_field('DELETE'); ?>
+                            <form action="<?php echo e(route('books.destroy', $book->id)); ?>" method="POST" class="delete-form">
+                                <?php echo csrf_field(); ?> <?php echo method_field('DELETE'); ?>
                                 <button type="submit" class="btn btn-danger btn-sm w-100"
-                                    onclick="return confirm('Are you sure you want to delete this book?');">
+                                        onclick="return confirm('Are you sure you want to delete this book?');">
                                     DELETE BOOK
                                 </button>
                             </form>
-
                         </div>
-                    </div><!-- /.modal-body -->
-
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-light"
-                                data-bs-dismiss="modal">Close</button>
                     </div>
-
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -436,28 +350,18 @@
             <div class="modal-dialog modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="historyModalLabel<?php echo e($book->id); ?>">
-                            📋 Full Borrow History — <?php echo e($book->title); ?>
-
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white"
-                                data-bs-dismiss="modal" aria-label="Close"></button>
+                        <h5 class="modal-title">📋 Full Borrow History — <?php echo e($book->title); ?></h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
-                    
                     <div class="modal-body" id="historyModalBody<?php echo e($book->id); ?>">
                         <div class="text-center py-4">
-                            <div class="spinner-border text-success" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
+                            <div class="spinner-border text-success" role="status"></div>
                         </div>
                     </div>
                     <div class="modal-footer d-flex justify-content-between align-items-center">
                         <a href="<?php echo e(route('book-history.index')); ?>?search=<?php echo e(urlencode($book->title)); ?>"
-                           target="_blank" class="btn btn-light btn-sm">
-                            Open Full History Page ↗
-                        </a>
-                        <button type="button" class="btn btn-secondary"
-                                data-bs-dismiss="modal">Close</button>
+                           target="_blank" class="btn btn-light btn-sm">Open Full History Page ↗</a>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>
                 </div>
             </div>
@@ -470,40 +374,31 @@
             <div class="modal-dialog modal-dialog-scrollable modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="copiesModalLabel<?php echo e($book->id); ?>">
-                            Copies — <?php echo e($book->title); ?>
-
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white"
-                                data-bs-dismiss="modal" aria-label="Close"></button>
+                        <h5 class="modal-title">Copies — <?php echo e($book->title); ?></h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body" id="copiesModalBody<?php echo e($book->id); ?>">
                         <div class="text-center">
-                            <div class="spinner-border" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
+                            <div class="spinner-border" role="status"></div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary"
-                                data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     </div>
                 </div>
             </div>
         </div>
 
     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-</div><!-- /#availableBooks -->
+</div>
 
-<!-- QR Return Confirmation Modal -->
-<div class="modal fade" id="barcodeReturnModal" tabindex="-1"
-     aria-labelledby="barcodeReturnModalLabel" aria-hidden="true">
+<!-- Return Confirmation Modal -->
+<div class="modal fade" id="barcodeReturnModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="qrReturnModalLabel">Confirm Book Return</h5>
-                <button type="button" class="btn-close btn-close-white"
-                        data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title">Confirm Book Return</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="text-center mb-4">
@@ -511,7 +406,7 @@
                     <h4 id="returnBookTitle" class="text-primary fw-bold mt-2"></h4>
                     <p id="returnBookAuthor" class="text-muted"></p>
                 </div>
-                <div class="borrower-info p-3 rounded" style="background:#f8f9fa;">
+                <div class="p-3 rounded" style="background:#f8f9fa;">
                     <h6 class="fw-bold text-success">Borrower Information</h6>
                     <p class="mb-1"><strong>Name:</strong> <span id="borrowerNameText"></span></p>
                     <p class="mb-1"><strong>Course &amp; Section:</strong> <span id="borrowerCourseText"></span></p>
@@ -532,17 +427,13 @@
     </div>
 </div>
 
-<!-- Scripts -->
+<?php $__env->startPush('scripts'); ?>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<link  rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
-
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-
-    /* ── URL highlight ── */
     const urlParams = new URLSearchParams(window.location.search);
+
+    /* ── Highlight from URL ── */
     const highlightBookId = urlParams.get('highlight_book');
     if (highlightBookId) {
         highlightBookCard(highlightBookId);
@@ -550,200 +441,74 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     /* ── Toastr ── */
-    toastr.options = {
-        closeButton: true, progressBar: true,
-        positionClass: "toast-top-right", timeOut: "5000"
-    };
+    if (typeof toastr !== 'undefined') {
+        toastr.options = { closeButton: true, progressBar: true, positionClass: "toast-top-right", timeOut: "5000" };
+    }
 
-    /* ══════════════════════════════════════════════════════
-       HISTORY MODAL — load fresh data from server every open
-       This guarantees returned records are NEVER missing.
-    ══════════════════════════════════════════════════════ */
+    /* ── Modal open → load data ── */
     document.addEventListener('show.bs.modal', function (e) {
         const modal  = e.target;
         const bookId = modal.getAttribute('data-book-id');
 
-        /* ── History modal ── */
+        /* History */
         if (bookId && modal.id.startsWith('historyModal')) {
             const body = document.getElementById(`historyModalBody${bookId}`);
             if (!body) return;
+            body.innerHTML = `<div class="text-center py-4"><div class="spinner-border text-success" role="status"></div><p class="mt-2 text-muted small">Loading…</p></div>`;
 
-            // Always show spinner + re-fetch so data is always live
-            body.innerHTML = `
-                <div class="text-center py-4">
-                    <div class="spinner-border text-success" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
-                    <p class="mt-2 text-muted small">Loading full history…</p>
-                </div>`;
-
-            fetch(`/books/${bookId}/history`, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json'
-                }
-            })
-            .then(r => {
-                if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                return r.json();
-            })
+            fetch(`/books/${bookId}/history`, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+            .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
             .then(data => {
-                if (!data.success) {
-                    body.innerHTML = `<p class="text-danger text-center py-3">
-                        ⚠ Could not load history: ${data.message ?? 'Unknown error'}</p>`;
-                    return;
-                }
+                if (!data.success) { body.innerHTML = `<p class="text-danger text-center py-3">⚠ ${data.message ?? 'Error'}</p>`; return; }
+                const records = data.history;
+                const total = records.length, active = records.filter(r => !r.returned_at).length, returned = records.filter(r => r.returned_at).length;
+                if (!total) { body.innerHTML = `<div class="text-center py-4 text-muted"><div style="font-size:2.5rem;opacity:.4">📭</div><p class="mt-2">No borrow history yet.</p></div>`; return; }
 
-                const records = data.history;   // full array, ALL statuses
-                const total    = records.length;
-                const active   = records.filter(r => !r.returned_at).length;
-                const returned = records.filter(r =>  r.returned_at).length;
+                let html = `<div class="history-summary-bar"><div>Total borrows: <span class="text-primary">${total}</span></div><div>Currently out: <span style="color:#856404">${active}</span></div><div>Returned: <span style="color:#0a3622">${returned}</span></div></div>`;
+                html += `<canvas id="ajaxHistoryChart${bookId}" height="110" class="mb-3"></canvas><div>`;
 
-                if (total === 0) {
-                    body.innerHTML = `
-                        <div class="text-center py-4 text-muted">
-                            <div style="font-size:2.5rem;opacity:.4">📭</div>
-                            <p class="mt-2">No borrow history yet for this book.</p>
-                        </div>`;
-                    return;
-                }
-
-                /* Summary bar */
-                let html = `
-                    <div class="history-summary-bar">
-                        <div>Total borrows: <span class="text-primary">${total}</span></div>
-                        <div>Currently out: <span style="color:#856404">${active}</span></div>
-                        <div>Returned: <span style="color:#0a3622">${returned}</span></div>
-                    </div>`;
-
-                /* Pie chart placeholder */
-                html += `<canvas id="ajaxHistoryChart${bookId}" height="110" class="mb-3"></canvas>`;
-
-                /* Records list — newest first */
-                html += `<div>`;
                 records.forEach(record => {
-                    const borrowedDate = record.borrowed_at
-                        ? new Date(record.borrowed_at).toLocaleString('en-PH', {
-                            month: 'short', day: 'numeric', year: 'numeric',
-                            hour: 'numeric', minute: '2-digit', hour12: true })
-                        : 'N/A';
-
-                    let statusBadge = '';
-                    let returnedLine = '';
-
+                    const fmt = iso => iso ? new Date(iso).toLocaleString('en-PH', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit', hour12:true }) : 'N/A';
+                    const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric' }) : 'N/A';
+                    let badge = '', returnedLine = '';
                     if (record.returned_at) {
-                        const returnedDate = new Date(record.returned_at).toLocaleString('en-PH', {
-                            month: 'short', day: 'numeric', year: 'numeric',
-                            hour: 'numeric', minute: '2-digit', hour12: true });
-                        statusBadge  = `<span class="history-status-returned">✓ Returned</span>`;
-                        returnedLine = `<div class="mt-1" style="color:#0a3622;font-size:.82rem;">
-                                            ↩ Returned: ${returnedDate}</div>`;
+                        badge = `<span class="history-status-returned">✓ Returned</span>`;
+                        returnedLine = `<div class="mt-1" style="color:#0a3622;font-size:.82rem;">↩ Returned: ${fmt(record.returned_at)}</div>`;
                     } else if (record.is_overdue) {
-                        statusBadge = `<span class="history-status-overdue">⚠ Overdue</span>`;
+                        badge = `<span class="history-status-overdue">⚠ Overdue</span>`;
                     } else {
-                        statusBadge = `<span class="history-status-active">📖 Active</span>`;
+                        badge = `<span class="history-status-active">📖 Active</span>`;
                     }
-
-                    const dueDate = record.due_date
-                        ? new Date(record.due_date).toLocaleDateString('en-PH', {
-                            month: 'short', day: 'numeric', year: 'numeric' })
-                        : 'N/A';
-
-                    html += `
-                        <div class="history-list-item">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <strong style="color:#00402c">${escapeHtml(record.student_name)}</strong>
-                                    <div class="text-muted" style="font-size:.8rem;">
-                                        ${escapeHtml(record.course)} — ${escapeHtml(record.section)}
-                                    </div>
-                                </div>
-                                ${statusBadge}
-                            </div>
-                            <div class="mt-1" style="font-size:.82rem;color:#495057;">
-                                📅 Borrowed: ${borrowedDate}
-                                &nbsp;|&nbsp; Due: ${dueDate}
-                            </div>
-                            ${returnedLine}
-                        </div>`;
+                    html += `<div class="history-list-item"><div class="d-flex justify-content-between align-items-start"><div><strong style="color:#00402c">${escapeHtml(record.student_name)}</strong><div class="text-muted" style="font-size:.8rem;">${escapeHtml(record.course)} — ${escapeHtml(record.section)}</div></div>${badge}</div><div class="mt-1" style="font-size:.82rem;color:#495057;">📅 Borrowed: ${fmt(record.borrowed_at)} &nbsp;|&nbsp; Due: ${fmtDate(record.due_date)}</div>${returnedLine}</div>`;
                 });
                 html += `</div>`;
-
                 body.innerHTML = html;
 
-                /* Render pie chart */
                 const ctx = document.getElementById(`ajaxHistoryChart${bookId}`);
-                if (ctx) {
-                    new Chart(ctx, {
-                        type: 'pie',
-                        data: {
-                            labels: ['Available', 'Currently Borrowed'],
-                            datasets: [{
-                                data: [data.available_copies, active],
-                                backgroundColor: ['#078b24', '#ff4d4d'],
-                                borderColor: '#fff',
-                                borderWidth: 2
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: {
-                                legend: { position: 'bottom' },
-                                title: {
-                                    display: true,
-                                    text: 'Available vs Currently Borrowed',
-                                    font: { size: 13 }
-                                }
-                            }
-                        }
-                    });
-                }
+                if (ctx) new Chart(ctx, { type:'pie', data:{ labels:['Available','Currently Borrowed'], datasets:[{ data:[data.available_copies, active], backgroundColor:['#078b24','#ff4d4d'], borderColor:'#fff', borderWidth:2 }] }, options:{ responsive:true, plugins:{ legend:{ position:'bottom' }, title:{ display:true, text:'Available vs Currently Borrowed', font:{ size:13 } } } } });
             })
-            .catch(err => {
-                body.innerHTML = `<p class="text-danger text-center py-3">
-                    ⚠ Error loading history. Please try again.<br>
-                    <small class="text-muted">${err.message}</small></p>`;
-            });
+            .catch(err => { body.innerHTML = `<p class="text-danger text-center py-3">⚠ Error loading history.<br><small>${err.message}</small></p>`; });
         }
 
-        /* ── Copies modal (unchanged logic) ── */
+        /* Copies */
         if (bookId && modal.id.startsWith('copiesModal')) {
             const modalBody = document.getElementById(`copiesModalBody${bookId}`);
             fetch(`/books/${bookId}/copies`)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success && data.copies.length > 0) {
-                        let html = '<div class="row gy-3">';
-                        data.copies.forEach(copy => {
-                            const statusColor = copy.status === 'available' ? 'success'
-                                              : copy.status === 'borrowed'   ? 'warning' : 'secondary';
-                            const printUrl = `/books/${bookId}/copies/${copy.id}/print`;
-                            html += `
-                                <div class="col-md-6 text-center">
-                                    <div class="p-3 border rounded">
-                                        <h6 class="mb-1">${copy.copy_number}</h6>
-                                        <p class="mb-2 small text-muted">
-                                            <strong>Barcode:</strong> ${copy.normalized_barcode}
-                                        </p>
-                                        <div class="mt-2 d-flex justify-content-center gap-2">
-                                            <span class="badge bg-${statusColor}">
-                                                ${copy.status.charAt(0).toUpperCase() + copy.status.slice(1)}
-                                            </span>
-                                            <a href="${printUrl}" target="_blank"
-                                               class="btn btn-sm btn-outline-primary">Print</a>
-                                        </div>
-                                    </div>
-                                </div>`;
-                        });
-                        html += '</div>';
-                        modalBody.innerHTML = html;
-                    } else {
-                        modalBody.innerHTML = '<p class="text-muted">No copies found for this book.</p>';
-                    }
-                })
-                .catch(() => {
-                    modalBody.innerHTML = '<p class="text-danger">Error loading copies. Please try again.</p>';
-                });
+            .then(r => r.json())
+            .then(data => {
+                if (data.success && data.copies.length > 0) {
+                    let html = '<div class="row gy-3">';
+                    data.copies.forEach(copy => {
+                        const sc = copy.status === 'available' ? 'success' : copy.status === 'borrowed' ? 'warning' : 'secondary';
+                        html += `<div class="col-md-6 text-center"><div class="p-3 border rounded"><h6 class="mb-1">${copy.copy_number}</h6><p class="mb-2 small text-muted"><strong>Barcode:</strong> ${copy.normalized_barcode}</p><div class="mt-2 d-flex justify-content-center gap-2"><span class="badge bg-${sc}">${copy.status.charAt(0).toUpperCase()+copy.status.slice(1)}</span><a href="/books/${bookId}/copies/${copy.id}/print" target="_blank" class="btn btn-sm btn-outline-primary">Print</a></div></div></div>`;
+                    });
+                    html += '</div>';
+                    modalBody.innerHTML = html;
+                } else {
+                    modalBody.innerHTML = '<p class="text-muted">No copies found for this book.</p>';
+                }
+            })
+            .catch(() => { modalBody.innerHTML = '<p class="text-danger">Error loading copies.</p>'; });
         }
     });
 
@@ -751,22 +516,13 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener('submit', function (e) {
         if (!e.target.classList.contains('borrow-form')) return;
         e.preventDefault();
-
-        const form      = e.target;
-        const bookId    = form.dataset.bookId;
-        const formData  = new FormData(form);
-        const borrowBtn = form.querySelector('.borrow-btn');
-
+        const form = e.target, bookId = form.dataset.bookId, borrowBtn = form.querySelector('.borrow-btn');
         borrowBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Borrowing...';
-        borrowBtn.disabled  = true;
+        borrowBtn.disabled = true;
 
         fetch("<?php echo e(route('borrow.store')); ?>", {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>'
-            }
+            method: 'POST', body: new FormData(form),
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>' }
         })
         .then(r => r.json())
         .then(data => {
@@ -774,82 +530,43 @@ document.addEventListener("DOMContentLoaded", function () {
                 updateBookCard(bookId, data.book.available_copies, data.active_borrowings);
                 showNotification('success', data.message);
                 form.reset();
-                broadcastBookBorrowed();
-            } else {
-                showNotification('error', data.message);
-            }
+            } else { showNotification('error', data.message); }
         })
-        .catch(() => showNotification('error', 'An error occurred while borrowing the book.'))
-        .finally(() => {
-            borrowBtn.innerHTML = 'BORROW';
-            borrowBtn.disabled  = false;
-        });
+        .catch(() => showNotification('error', 'An error occurred.'))
+        .finally(() => { borrowBtn.innerHTML = 'BORROW'; borrowBtn.disabled = false; });
     });
 
-    /* ── Update card + modal badges after borrow ── */
     function updateBookCard(bookId, availableCopies, activeBorrowings) {
         const badge = document.getElementById(`available-badge-${bookId}`);
         if (badge) {
-            if (availableCopies > 0) {
-                badge.textContent = `Available: ${availableCopies}`;
-                badge.className   = 'badge bg-success available-badge';
-            } else {
-                badge.textContent = 'Fully Borrowed';
-                badge.className   = 'badge bg-secondary available-badge';
-            }
+            badge.textContent = availableCopies > 0 ? `Available: ${availableCopies}` : 'Fully Borrowed';
+            badge.className = `badge ${availableCopies > 0 ? 'bg-success' : 'bg-secondary'} available-badge`;
         }
-
         const inUseBadge = document.getElementById(`in-use-badge-${bookId}`);
         const inUseCount = document.getElementById(`in-use-count-${bookId}`);
         if (inUseCount) inUseCount.textContent = activeBorrowings;
         if (inUseBadge) inUseBadge.style.display = activeBorrowings > 0 ? '' : 'none';
-
-        document.querySelectorAll(`.modal-in-use-${bookId}, #modal-in-use-count-${bookId}`)
-            .forEach(el => el.textContent = activeBorrowings);
-
+        document.querySelectorAll(`.modal-in-use-${bookId}, #modal-in-use-count-${bookId}`).forEach(el => el.textContent = activeBorrowings);
         if (availableCopies < 1) {
             const showModal = document.getElementById(`showModal${bookId}`);
-            if (showModal) {
-                const borrowForm = showModal.querySelector('.borrow-form');
-                if (borrowForm) {
-                    borrowForm.outerHTML =
-                        '<button class="btn btn-secondary w-100 mb-3" disabled>ALL COPIES BORROWED</button>';
-                }
-            }
+            if (showModal) { const bf = showModal.querySelector('.borrow-form'); if (bf) bf.outerHTML = '<button class="btn btn-secondary w-100 mb-3" disabled>ALL COPIES BORROWED</button>'; }
         }
     }
 
-    function showNotification(type, message) {
-        typeof toastr !== 'undefined' ? toastr[type](message) : alert(message);
-    }
-
-    function broadcastBookBorrowed() {
-        window.dispatchEvent(new CustomEvent('bookBorrowed', {
-            detail: { timestamp: new Date().toISOString() }
-        }));
-        localStorage.setItem('bookBorrowed', Date.now().toString());
-        if (window.opener) window.opener.postMessage('bookBorrowed', '*');
-    }
+    function showNotification(type, message) { typeof toastr !== 'undefined' ? toastr[type](message) : alert(message); }
 
     /* ── Search ── */
-    const searchInput    = document.getElementById("bookSearch");
-    const availableBooks = document.getElementById("availableBooks");
-
-    if (searchInput && availableBooks) {
-        const allCards = Array.from(availableBooks.querySelectorAll(".book-card"));
+    const searchInput = document.getElementById("bookSearch");
+    const booksGrid   = document.getElementById("availableBooks");
+    if (searchInput && booksGrid) {
+        const allCards = Array.from(booksGrid.querySelectorAll(".book-card"));
         searchInput.addEventListener("keyup", function () {
-            const query = this.value.toLowerCase();
+            const q = this.value.toLowerCase();
             allCards.forEach(card => {
-                const titleEl   = card.querySelector(".book-title");
-                const titleText = titleEl.textContent.toLowerCase();
-                if (titleText.includes(query)) {
-                    card.style.display = 'block';
-                    titleEl.innerHTML  = query
-                        ? titleText.replace(new RegExp(`(${query})`, "gi"), "<mark>$1</mark>")
-                        : titleText;
-                } else {
-                    card.style.display = 'none';
-                }
+                const titleEl = card.querySelector(".book-title");
+                const text = titleEl.textContent.toLowerCase();
+                card.style.display = text.includes(q) ? 'block' : 'none';
+                if (text.includes(q)) titleEl.innerHTML = q ? text.replace(new RegExp(`(${q})`, "gi"), "<mark>$1</mark>") : text;
             });
         });
     }
@@ -859,103 +576,64 @@ document.addEventListener("DOMContentLoaded", function () {
     if (returnBookId) showReturnConfirmation(returnBookId);
 
     function showReturnConfirmation(bookId) {
-        ['returnBookTitle','returnBookAuthor','borrowerNameText','borrowerCourseText','dueDateText']
-            .forEach(id => document.getElementById(id).textContent = 'Loading...');
-
+        ['returnBookTitle','returnBookAuthor','borrowerNameText','borrowerCourseText','dueDateText'].forEach(id => document.getElementById(id).textContent = 'Loading...');
         fetch(`/books/${bookId}/borrowing-data`)
-            .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-            .then(data => {
-                if (data.success) {
-                    document.getElementById('returnBookTitle').textContent  = data.book.title;
-                    document.getElementById('returnBookAuthor').textContent = 'by ' + data.book.author;
-                    if (data.borrowing) {
-                        document.getElementById('borrowerNameText').textContent   = data.borrowing.student_name;
-                        document.getElementById('borrowerCourseText').textContent =
-                            data.borrowing.course + ' - ' + data.borrowing.section;
-                        document.getElementById('dueDateText').textContent =
-                            new Date(data.borrowing.due_date).toLocaleDateString();
-                    } else {
-                        document.getElementById('borrowerNameText').textContent   = 'No active borrowing';
-                        document.getElementById('borrowerCourseText').textContent = 'N/A';
-                        document.getElementById('dueDateText').textContent        = 'N/A';
-                    }
-                    document.getElementById('barcodeReturnForm').action =
-                        `/borrowing/${bookId}/process-return`;
-                    new bootstrap.Modal(document.getElementById('barcodeReturnModal')).show();
-                    window.history.replaceState({}, document.title, window.location.pathname);
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(data => {
+            if (data.success) {
+                document.getElementById('returnBookTitle').textContent  = data.book.title;
+                document.getElementById('returnBookAuthor').textContent = 'by ' + data.book.author;
+                if (data.borrowing) {
+                    document.getElementById('borrowerNameText').textContent   = data.borrowing.student_name;
+                    document.getElementById('borrowerCourseText').textContent = data.borrowing.course + ' - ' + data.borrowing.section;
+                    document.getElementById('dueDateText').textContent = new Date(data.borrowing.due_date).toLocaleDateString();
                 } else {
-                    alert('Error: ' + (data.message || 'Failed to load book information'));
+                    document.getElementById('borrowerNameText').textContent   = 'No active borrowing';
+                    document.getElementById('borrowerCourseText').textContent = 'N/A';
+                    document.getElementById('dueDateText').textContent        = 'N/A';
                 }
-            })
-            .catch(err => alert('Error loading book information: ' + err));
+                document.getElementById('barcodeReturnForm').action = `/borrowing/${bookId}/process-return`;
+                new bootstrap.Modal(document.getElementById('barcodeReturnModal')).show();
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        })
+        .catch(err => alert('Error loading book information: ' + err));
     }
 
-    /* ── Confirm return ── */
     document.addEventListener('click', function (e) {
         if (!e.target.closest('#barcodeReturnForm button[type="submit"]')) return;
         e.preventDefault();
-
-        const form      = document.getElementById('barcodeReturnForm');
-        const submitBtn = e.target.closest('button');
-        const origText  = submitBtn.innerHTML;
-
+        const form = document.getElementById('barcodeReturnForm'), submitBtn = e.target.closest('button'), origText = submitBtn.innerHTML;
         submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Processing...';
-        submitBtn.disabled  = true;
-
-        fetch(form.action, {
-            method: 'POST',
-            body: new FormData(form),
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': '<?php echo e(csrf_token()); ?>'
-            }
-        })
+        submitBtn.disabled = true;
+        fetch(form.action, { method:'POST', body:new FormData(form), headers:{ 'X-Requested-With':'XMLHttpRequest', 'X-CSRF-TOKEN':'<?php echo e(csrf_token()); ?>' } })
         .then(r => r.json())
         .then(data => {
-            if (data.success) {
-                const modalEl = document.getElementById('barcodeReturnModal');
-                const m       = bootstrap.Modal.getInstance(modalEl);
-                m ? m.hide() : modalEl.querySelector('[data-bs-dismiss="modal"]').click();
-                showNotification('success', data.message);
-            } else {
-                showNotification('error', data.message);
-                submitBtn.innerHTML = origText;
-                submitBtn.disabled  = false;
-            }
+            if (data.success) { const m = bootstrap.Modal.getInstance(document.getElementById('barcodeReturnModal')); m ? m.hide() : null; showNotification('success', data.message); }
+            else { showNotification('error', data.message); submitBtn.innerHTML = origText; submitBtn.disabled = false; }
         })
-        .catch(() => {
-            showNotification('error', 'An error occurred while returning the book.');
-            submitBtn.innerHTML = origText;
-            submitBtn.disabled  = false;
-        });
+        .catch(() => { showNotification('error', 'An error occurred.'); submitBtn.innerHTML = origText; submitBtn.disabled = false; });
     });
 
-    const barcodeReturnForm = document.getElementById('barcodeReturnForm');
-    if (barcodeReturnForm) {
-        barcodeReturnForm.addEventListener('submit', e => e.preventDefault());
-    }
+    document.getElementById('barcodeReturnForm')?.addEventListener('submit', e => e.preventDefault());
 
-    /* ── XSS-safe helper ── */
     function escapeHtml(str) {
         if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
+        return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 });
 
 function highlightBookCard(bookId) {
     const card = document.getElementById(`book-card-${bookId}`);
     if (!card) return;
-    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.scrollIntoView({ behavior:'smooth', block:'center' });
     card.style.transition = 'all 0.5s ease';
     card.style.boxShadow  = '0 0 0 3px #198754';
     card.style.transform  = 'scale(1.02)';
     setTimeout(() => { card.style.boxShadow = ''; card.style.transform = ''; }, 3000);
 }
 </script>
+<?php $__env->stopPush(); ?>
 
 <?php $__env->stopSection(); ?>
-<?php echo $__env->make('app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\xampp\htdocs\project-name\resources\views/books/index.blade.php ENDPATH**/ ?>
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\xampp\htdocs\project-name\resources\views/books/index.blade.php ENDPATH**/ ?>

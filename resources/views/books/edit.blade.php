@@ -1,5 +1,4 @@
-@extends('app')
-
+@extends('layouts.app')
 @section('title', 'Edit Book')
 
 @section('content')
