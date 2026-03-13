@@ -74,25 +74,59 @@ html, body {
 
 /* ----- Notification Dropdown ----- */
 .dropdown-menu-notification {
-    min-width: 350px;
-    max-height: 400px;
+    min-width: 320px;
+    max-width: 360px;
+    width: 360px;
+    max-height: 420px;
+    overflow-x: hidden;
     overflow-y: auto;
     border: 1px solid #e9ecef;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    /* keep it on screen on small viewports */
+    right: 0 !important;
+    left: auto !important;
 }
-.dropdown-header {
+
+/* Sticky header inside scroll panel */
+.dropdown-menu-notification .dropdown-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
     background-color: #f8f9fa;
     color: #2c3e50;
     font-weight: 600;
     border-bottom: 1px solid #e9ecef;
+    padding: 0.6rem 1rem;
+    /* prevent header from shrinking */
+    flex-shrink: 0;
 }
+
 .notification-item {
-    padding: 12px 15px;
-    border-bottom: 1px solid #e9ecef;
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0f0f0;
     transition: background-color 0.2s ease;
+    /* prevent long text from blowing out width */
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
 }
 .notification-item:hover { background-color: #f8f9fa; }
-.notification-item strong { color: #2c3e50; }
+.notification-item strong {
+    color: #2c3e50;
+    display: block;
+    /* truncate very long names */
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.notification-item small.text-muted {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .notification-item:last-child { border-bottom: none; }
 
 .days-left { font-weight: bold; }
@@ -101,10 +135,13 @@ html, body {
 .days-left.red    { color: #dc3545; }
 
 .time-display {
-    font-size: 0.85rem;
-    margin-top: 5px;
+    font-size: 0.82rem;
+    margin-top: 4px;
     display: block;
-    line-height: 1.4;
+    line-height: 1.5;
+    /* wrap cleanly rather than overflow */
+    white-space: normal;
+    word-break: break-word;
 }
 .time-display .spent-time    { color: #6c757d; }
 .time-display .remaining-time { font-weight: bold; }
@@ -332,4 +369,11 @@ body.modal-open {
     .borrowings-table { font-size: 0.82rem; }
     .borrowings-table th, .borrowings-table td { padding: 0.6rem 0.5rem; }
     .stats-bar { flex-direction: column; }
+
+    /* Notification dropdown full-width on mobile */
+    .dropdown-menu-notification {
+        min-width: calc(100vw - 2rem);
+        max-width: calc(100vw - 2rem);
+        width: calc(100vw - 2rem);
+    }
 }

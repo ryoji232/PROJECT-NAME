@@ -132,6 +132,24 @@
             </table>
         </div>
 
+        
+        <?php if($historyRecords->hasPages()): ?>
+            <div class="d-flex justify-content-between align-items-center px-3 py-3 border-top">
+                <div class="text-muted" style="font-size:0.875rem;">
+                    Showing
+                    <strong><?php echo e($historyRecords->firstItem()); ?></strong>–<strong><?php echo e($historyRecords->lastItem()); ?></strong>
+                    of <strong><?php echo e($historyRecords->total()); ?></strong> records
+                </div>
+                <nav aria-label="Book history pagination">
+                    <?php echo e($historyRecords->links('pagination::bootstrap-5')); ?>
+
+                </nav>
+            </div>
+        <?php else: ?>
+            <div class="px-3 py-2 border-top text-muted" style="font-size:0.875rem;">
+                Showing all <strong><?php echo e($historyRecords->total()); ?></strong> records
+            </div>
+        <?php endif; ?>
 
     <?php else: ?>
         <div class="no-records">
