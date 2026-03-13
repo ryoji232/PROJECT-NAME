@@ -97,6 +97,9 @@ Route::middleware(['auth:librarian'])->group(function () {
     
     // Real-time Data
     Route::get('/borrowings/realtime-data', [BorrowingController::class, 'getRealTimeData'])->name('borrowings.realtime.data');
+
+    // Notification bell data — polled every 60s by the navbar JS
+    Route::get('/notifications/data', [BorrowingController::class, 'getNotificationsData'])->name('notifications.data');
 });
 
 // Route to handle scanned barcodes

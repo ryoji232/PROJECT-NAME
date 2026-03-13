@@ -1,5 +1,3 @@
-
-
 <?php $__env->startSection('title', 'Book History — Library System'); ?>
 
 <?php $__env->startSection('content'); ?>

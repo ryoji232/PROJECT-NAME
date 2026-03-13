@@ -38,6 +38,8 @@ try {
             'spendingTime'  => "{$__spentDays}d {$__spentHours}h {$__spentMins}m",
             'remainingTime' => $__remText,
             'daysLeft'      => $__remDays,
+            'spentSeconds'  => (int) $__spent,
+            'remainingSeconds' => (int) $__remaining,
             'status'        => $__remDays > 7 ? 'green' : ($__remDays >= 0 ? 'yellow' : 'red'),
         ];
     }
@@ -97,18 +99,18 @@ try {
             </li>
 
             
-            <li class="nav-item dropdown">
+            <li class="nav-item dropdown" id="notifDropdownWrapper">
                 <a class="nav-link dropdown-toggle position-relative" href="#" role="button"
-                   data-bs-toggle="dropdown" aria-expanded="false">
+                   data-bs-toggle="dropdown" aria-expanded="false" id="notifBellBtn">
                     🔔
-                    <?php if(count($notificationList) > 0): ?>
-                        <span class="badge bg-danger position-absolute top-0 start-100 translate-middle rounded-pill">
-                            <?php echo e(count($notificationList)); ?>
+                    <span id="notifBadge"
+                          class="badge bg-danger position-absolute top-0 start-100 translate-middle rounded-pill"
+                          style="<?php echo e(count($notificationList) > 0 ? '' : 'display:none'); ?>">
+                        <?php echo e(count($notificationList)); ?>
 
-                        </span>
-                    <?php endif; ?>
+                    </span>
                 </a>
-                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-notification">
+                <ul class="dropdown-menu dropdown-menu-end dropdown-menu-notification" id="notifDropdownList">
                     <li><h6 class="dropdown-header">Due Date Notifications</h6></li>
                     <?php $__empty_1 = true; $__currentLoopData = $notificationList; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $n): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                         <li class="notification-item">
@@ -135,4 +137,188 @@ try {
 
 
 <input type="text" id="barcodeScannerInput" tabindex="-1"
-       style="position:fixed;top:0;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"><?php /**PATH C:\xampp\htdocs\project-name\resources\views/partials/navbar.blade.php ENDPATH**/ ?>
+       style="position:fixed;top:0;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;">
+
+
+<script>
+(function () {
+    'use strict';
+
+    // ── State ────────────────────────────────────────────────────
+    var notifData    = [];   // live array, mutated by ticker
+    var tickInterval = null;
+
+    // ── Seed from server-rendered PHP so first render is instant ─
+    <?php if(count($notificationList) > 0): ?>
+    notifData = <?php echo json_encode($notificationList, 15, 512) ?>.map(function (n) {
+        return {
+            borrower:         n.borrower,
+            book:             n.book,
+            status:           n.status,
+            daysLeft:         n.daysLeft,
+            _spentSec:        n.spentSeconds,
+            _remainingSec:    n.remainingSeconds,
+        };
+    });
+    <?php endif; ?>
+
+    // ── Helpers ───────────────────────────────────────────────────
+    function pad(n) { return n < 10 ? '0' + n : n; }
+
+    function fmtSpent(sec) {
+        sec = Math.max(0, Math.floor(sec));
+        var d = Math.floor(sec / 86400);
+        var h = Math.floor((sec % 86400) / 3600);
+        var m = Math.floor((sec % 3600) / 60);
+        var s = sec % 60;
+        return d + 'd ' + pad(h) + 'h ' + pad(m) + 'm ' + pad(s) + 's';
+    }
+
+    function fmtRemaining(sec) {
+        if (sec <= 0) return 'Overdue';
+        sec = Math.floor(sec);
+        var d = Math.floor(sec / 86400);
+        var h = Math.floor((sec % 86400) / 3600);
+        var m = Math.floor((sec % 3600) / 60);
+        var s = sec % 60;
+        return d + 'd ' + pad(h) + 'h ' + pad(m) + 'm ' + pad(s) + 's';
+    }
+
+    function statusClass(remainingSec) {
+        if (remainingSec <= 0)              return 'red';
+        if (remainingSec <= 7 * 86400)      return 'yellow';
+        return 'green';
+    }
+
+    // ── Render the dropdown list ──────────────────────────────────
+    function renderNotifications() {
+        var list  = document.getElementById('notifDropdownList');
+        var badge = document.getElementById('notifBadge');
+        if (!list) return;
+
+        // Update badge
+        if (badge) {
+            if (notifData.length > 0) {
+                badge.textContent    = notifData.length;
+                badge.style.display  = '';
+            } else {
+                badge.style.display  = 'none';
+            }
+        }
+
+        if (notifData.length === 0) {
+            list.innerHTML =
+                '<li><h6 class="dropdown-header">Due Date Notifications</h6></li>' +
+                '<li class="text-center p-3 text-muted">No notifications</li>';
+            return;
+        }
+
+        var html = '<li><h6 class="dropdown-header">Due Date Notifications</h6></li>';
+
+        notifData.forEach(function (n) {
+            var cls     = statusClass(n._remainingSec);
+            var remText = fmtRemaining(n._remainingSec);
+            var sptText = fmtSpent(n._spentSec);
+
+            html +=
+                '<li class="notification-item">' +
+                    '<strong>' + escHtml(n.borrower) + '</strong><br>' +
+                    '<small class="text-muted">' + escHtml(n.book) + '</small><br>' +
+                    '<span class="time-display">' +
+                        '<span class="spent-time">Spent: ' + sptText + '</span>' +
+                        '<span class="remaining-time days-left ' + cls + '"> | Left: ' + remText + '</span>' +
+                    '</span>' +
+                '</li>';
+        });
+
+        list.innerHTML = html;
+    }
+
+    // Simple HTML escaper to avoid XSS
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    // ── Second-by-second ticker ───────────────────────────────────
+    function startTicker() {
+        if (tickInterval) clearInterval(tickInterval);
+        tickInterval = setInterval(function () {
+            notifData.forEach(function (n) {
+                n._spentSec     += 1;
+                n._remainingSec -= 1;
+            });
+            // Only paint if the dropdown is actually open (performance)
+            var wrapper = document.getElementById('notifDropdownWrapper');
+            if (wrapper && wrapper.classList.contains('show')) {
+                renderNotifications();
+            }
+        }, 1000);
+    }
+
+    // ── Fetch fresh data from server ──────────────────────────────
+    function fetchNotifications() {
+        fetch('/notifications/data', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept':           'application/json'
+            }
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            if (!data.success) return;
+
+            notifData = (data.notifications || []).map(function (n) {
+                return {
+                    borrower:      n.borrower,
+                    book:          n.book,
+                    daysLeft:      n.daysLeft,
+                    _spentSec:     n.spentSeconds,
+                    _remainingSec: n.remainingSeconds,
+                };
+            });
+
+            // Re-render if dropdown is open; always update badge
+            var badge = document.getElementById('notifBadge');
+            if (badge) {
+                if (notifData.length > 0) {
+                    badge.textContent   = notifData.length;
+                    badge.style.display = '';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+
+            var wrapper = document.getElementById('notifDropdownWrapper');
+            if (wrapper && wrapper.classList.contains('show')) {
+                renderNotifications();
+            }
+        })
+        .catch(function (err) {
+            console.warn('[Notifications] fetch error:', err);
+        });
+    }
+
+    // ── Boot ──────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function () {
+        // Re-render immediately when bell is clicked
+        var btn = document.getElementById('notifBellBtn');
+        if (btn) {
+            btn.addEventListener('click', function () {
+                // Small delay so Bootstrap has time to add .show to wrapper
+                setTimeout(renderNotifications, 50);
+            });
+        }
+
+        // Start ticking
+        startTicker();
+
+        // Sync with server every 60 seconds
+        setInterval(fetchNotifications, 60000);
+    });
+
+})();
+</script><?php /**PATH C:\xampp\htdocs\project-name\resources\views/partials/navbar.blade.php ENDPATH**/ ?>

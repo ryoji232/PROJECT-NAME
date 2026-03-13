@@ -1,65 +1,60 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Librarian Login</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{{ asset('css/login.css') }}">
-</head>
-<body>
+@extends('layouts.app')
 
-<div class="login-panel">
-    <h1>LIBRARIAN LOGIN</h1>
+@section('title', 'My Profile')
 
-    @if(session('attempts_remaining') && !session('account_locked'))
-        <div class="attempts-warning">
-            ⚠️ Warning: {{ session('attempts_remaining') }} attempt(s) remaining before lockout
-        </div>
-    @endif
+@section('content')
+@php $librarian = Auth::guard('librarian')->user(); @endphp
 
-    @if(session('account_locked'))
-        <div class="lockout-message">
-            🔒 Account temporarily locked.<br>
-            Try again in <span id="lockoutTimer" class="lockout-timer">{{ session('lockout_time') }}:00</span>
-        </div>
-    @endif
+<div class="row justify-content-center">
+<div class="col-md-6">
+<div class="card shadow-sm">
+    <div class="card-header bg-success text-white">👤 Librarian Profile</div>
+    <div class="card-body">
 
-    @if($errors->any())
-        <div class="alert alert-danger">
-            @foreach($errors->all() as $error){{ $error }}<br>@endforeach
-        </div>
-    @endif
+        @if(!$librarian)
+            <div class="alert alert-warning text-center">
+                <h5>Not Authenticated</h5>
+                <p>Please log in to view your profile.</p>
+                <a href="{{ route('librarian.login') }}" class="btn btn-primary">Login</a>
+            </div>
+        @else
 
-    @php $locked = session('account_locked'); @endphp
+            <div class="text-center mb-4">
+                <div style="font-size:4rem;">👤</div>
+                <h4 class="fw-bold mt-2">{{ $librarian->name }}</h4>
+                <p class="text-muted mb-0">{{ $librarian->email }}</p>
+                <span class="badge bg-success mt-1">Librarian</span>
+            </div>
 
-    <form method="POST" action="{{ route('librarian.login.submit') }}" id="loginForm">
-        @csrf
-        <div class="mb-3 text-start">
-            <label class="form-label">EMAIL</label>
-            <input type="email" class="form-control" name="email" value="{{ old('email') }}"
-                   required autofocus {{ $locked ? 'disabled' : '' }}>
-        </div>
-        <div class="mb-3 text-start">
-            <label class="form-label">PASSWORD</label>
-            <input type="password" class="form-control" name="password"
-                   required {{ $locked ? 'disabled' : '' }}>
-        </div>
-        <div class="mb-3 form-check text-start">
-            <input type="checkbox" class="form-check-input" name="remember" id="remember"
-                   {{ $locked ? 'disabled' : '' }}>
-            <label class="form-check-label" for="remember">REMEMBER ME</label>
-        </div>
-        <button type="submit" class="btn btn-login" id="loginButton" {{ $locked ? 'disabled' : '' }}>
-            {{ $locked ? 'LOCKED' : 'LOGIN' }}
-        </button>
-    </form>
+            <hr>
+
+            <table class="table table-borderless mb-0">
+                <tr>
+                    <th class="text-muted" style="width:40%;">Full Name</th>
+                    <td>{{ $librarian->name }}</td>
+                </tr>
+                <tr>
+                    <th class="text-muted">Email</th>
+                    <td>{{ $librarian->email }}</td>
+                </tr>
+                <tr>
+                    <th class="text-muted">Member Since</th>
+                    <td>{{ $librarian->created_at?->format('M d, Y') ?? 'N/A' }}</td>
+                </tr>
+            </table>
+
+            <hr>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ route('librarian.account') }}" class="btn btn-warning">⚙️ Account Settings</a>
+                <a href="{{ route('dashboard') }}" class="btn btn-outline-primary">← Dashboard</a>
+            </div>
+
+        @endif
+
+    </div>
+</div>
+</div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-@if(session('account_locked') && session('lockout_seconds'))
-    <script>window.lockoutSeconds = {{ session('lockout_seconds') }};</script>
-@endif
-<script src="{{ asset('js/login.js') }}"></script>
-</body>
-</html>
+@endsection

@@ -310,6 +310,74 @@ class BorrowingController extends Controller
     }
 
     // =========================================================
+    // NOTIFICATION DATA — Real-time bell panel
+    // Returns raw seconds so the JS ticker can count down live
+    // =========================================================
+    public function getNotificationsData()
+    {
+        try {
+            $now  = now();
+            $rows = DB::table('borrowings')
+                ->join('books', 'borrowings.book_id', '=', 'books.id')
+                ->whereNull('borrowings.returned_at')
+                ->orderBy('borrowings.borrowed_at', 'asc')
+                ->select(
+                    'borrowings.student_name',
+                    'borrowings.borrowed_at',
+                    'borrowings.created_at',
+                    'books.title as book_title'
+                )
+                ->get();
+
+            $notifications = [];
+
+            foreach ($rows as $row) {
+                $borrowedAt = \Carbon\Carbon::parse($row->borrowed_at ?? $row->created_at);
+                $spent      = (int) $borrowedAt->diffInSeconds($now);
+                $remaining  = (14 * 86400) - $spent;
+
+                $spentDays  = floor($spent / 86400);
+                $spentHours = floor(($spent % 86400) / 3600);
+                $spentMins  = floor(($spent % 3600) / 60);
+
+                if ($remaining > 0) {
+                    $remDays  = floor($remaining / 86400);
+                    $remHours = floor(($remaining % 86400) / 3600);
+                    $remMins  = floor(($remaining % 3600) / 60);
+                    $remText  = "{$remDays}d {$remHours}h {$remMins}m";
+                    $status   = $remDays > 7 ? 'green' : 'yellow';
+                } else {
+                    $remDays  = (int) -floor(abs($remaining) / 86400);
+                    $remText  = 'Overdue';
+                    $status   = 'red';
+                }
+
+                $notifications[] = [
+                    'borrower'         => $row->student_name,
+                    'book'             => $row->book_title,
+                    'spendingTime'     => "{$spentDays}d {$spentHours}h {$spentMins}m",
+                    'remainingTime'    => $remText,
+                    'daysLeft'         => $remDays,
+                    'spentSeconds'     => $spent,       // raw — JS ticks from here
+                    'remainingSeconds' => $remaining,   // raw — JS ticks from here
+                    'status'           => $status,
+                ];
+            }
+
+            usort($notifications, fn($a, $b) => $a['daysLeft'] <=> $b['daysLeft']);
+
+            return response()->json([
+                'success'       => true,
+                'notifications' => $notifications,
+                'count'         => count($notifications),
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    // =========================================================
     // GET BORROWING DATA (for barcode modal)
     // =========================================================
     public function getBorrowingData($id)

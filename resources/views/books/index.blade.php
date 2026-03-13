@@ -44,12 +44,27 @@
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        transition: box-shadow 0.2s, transform 0.2s;
+        transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
+        cursor: pointer;
     }
     .book-card-inner:hover {
-        box-shadow: 0 6px 20px rgba(25,135,84,0.15);
-        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(25,135,84,0.22);
+        transform: translateY(-3px);
+        border-color: #198754;
     }
+
+    /* Subtle "tap to open" hint at bottom of card */
+    .card-click-hint {
+        margin-top: .85rem;
+        text-align: center;
+        font-size: .78rem;
+        font-weight: 600;
+        color: #000000;
+        letter-spacing: .4px;
+        opacity: .7;
+        user-select: none;
+    }
+    .book-card-inner:hover .card-click-hint { opacity: 1; }
 
     .book-title {
         color: #00402c;
@@ -62,22 +77,6 @@
     .badge.bg-success   { background:#198754!important; font-size:.85rem; border-radius:.5rem; padding:.35em .75em; }
     .badge.bg-secondary { background:#6c757d!important; font-size:.85rem; border-radius:.5rem; padding:.35em .75em; }
     .badge.bg-warning   { background:#ffc107!important; color:#212529!important; font-size:.85rem; border-radius:.5rem; padding:.35em .75em; }
-
-    .btn-show {
-        background: #198754;
-        color: #fff;
-        border: none;
-        border-radius: 8px;
-        font-weight: 700;
-        font-size: .9rem;
-        padding: 9px 0;
-        width: 100%;
-        letter-spacing: .4px;
-        transition: background .18s, transform .18s;
-        cursor: pointer;
-        margin-top: .85rem;
-    }
-    .btn-show:hover { background: #157347; transform: scale(1.02); color: #fff; }
 
     .btn-primary, .btn-success {
         background: #198754; border: none; border-radius: 8px;
@@ -209,7 +208,7 @@
             <input type="text" name="author" class="form-control" placeholder="Author" required>
         </div>
         <div class="col-md-2">
-            <input type="number" name="copies" class="form-control" placeholder="Copies (default 1)" min="1">
+            <input type="number" name="copies" class="form-control" placeholder="Number of copies (max 10)" min="1" max="10" oninput="if(this.value>10)this.value=10;">
         </div>
         <div class="col-md-2">
             <button type="submit" class="btn btn-success w-100">Add Book</button>
@@ -229,9 +228,11 @@
     @foreach($books as $book)
         @php $notReturnedCount = $book->borrowings->whereNull('returned_at')->count(); @endphp
 
-        {{-- CARD --}}
+        {{-- CARD — entire card is now the trigger --}}
         <div class="col-md-4 book-card" data-book-id="{{ $book->id }}" id="book-card-{{ $book->id }}">
-            <div class="book-card-inner">
+            <div class="book-card-inner"
+                 data-bs-toggle="modal"
+                 data-bs-target="#showModal{{ $book->id }}">
                 <div>
                     <h5 class="book-title">{{ $book->title }}</h5>
                     <small class="text-muted">by {{ $book->author }}</small>
@@ -252,10 +253,7 @@
                     </div>
                     <small class="text-muted d-block mt-1" style="font-size:.75rem;">ID: {{ $book->id }}</small>
                 </div>
-                <button type="button" class="btn-show"
-                        data-bs-toggle="modal" data-bs-target="#showModal{{ $book->id }}">
-                    SHOW
-                </button>
+                <div class="card-click-hint">Click to view details</div>
             </div>
         </div>
 

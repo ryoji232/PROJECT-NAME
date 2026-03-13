@@ -1,5 +1,3 @@
-
-
 <?php $__env->startSection('title', 'Dashboard — Library System'); ?>
 
 <?php $__env->startPush('scripts'); ?>
