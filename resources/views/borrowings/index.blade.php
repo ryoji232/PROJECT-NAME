@@ -45,10 +45,10 @@
             </select>
         </div>
         <div class="col-md-2">
-            <button type="submit" class="btn btn-success w-100">🔍 Search</button>
+            <button type="submit" class="btn btn-success w-100">Search</button>
         </div>
         <div class="col-md-2">
-            <a href="{{ route('borrowings.index') }}" class="btn btn-outline-secondary w-100">✖ Clear</a>
+            <a href="{{ route('borrowings.index') }}" class="btn btn-outline-secondary w-100">Clear</a>
         </div>
     </form>
 </div>
@@ -116,7 +116,7 @@
                                 @if($isOverdue)
                                     <span class="status-badge status-overdue">⚠ Overdue</span>
                                 @else
-                                    <span class="status-badge status-borrowed">📖 Borrowed</span>
+                                    <span class="status-badge status-borrowed">Borrowed</span>
                                 @endif
                             </td>
                             <td>

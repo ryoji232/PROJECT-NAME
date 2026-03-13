@@ -55,10 +55,10 @@
             </select>
         </div>
         <div class="col-md-2">
-            <button type="submit" class="btn btn-success w-100">🔍 Filter</button>
+            <button type="submit" class="btn btn-success w-100">Filter</button>
         </div>
         <div class="col-md-2">
-            <a href="{{ route('book-history.index') }}" class="btn btn-outline-secondary w-100">✖ Clear</a>
+            <a href="{{ route('book-history.index') }}" class="btn btn-outline-secondary w-100">Clear</a>
         </div>
     </form>
 </div>
@@ -117,12 +117,12 @@
                             <td>
                                 @if($isReturned)
                                     <span class="status-badge" style="background:#d4edda;color:#155724;border:1px solid #c3e6cb;">
-                                        ✅ Returned
+                                         Returned
                                     </span>
                                 @elseif($isOverdue)
                                     <span class="status-badge status-overdue">⚠ Overdue</span>
                                 @else
-                                    <span class="status-badge status-borrowed">📖 Borrowed</span>
+                                    <span class="status-badge status-borrowed">Borrowed</span>
                                 @endif
                             </td>
                         </tr>
