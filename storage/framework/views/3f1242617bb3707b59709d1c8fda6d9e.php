@@ -502,16 +502,6 @@
     'use strict';
 
     // ── 1. Expose barcode → bookId lookup map for the scanner ────────────
-    //
-    // The server renders data-barcode-index on #bookGrid as a JSON object:
-    //   { "COPYBARCODESTRING": bookId, … }
-    //
-    // app.js openBookShowModal() already handles opening the modal by ID.
-    // We just need to provide the map so a scanned copy barcode can be
-    // resolved client-side instead of making an extra AJAX call.
-    //
-    // app.js already does the AJAX fallback via /copies/scan/{code};
-    // this map is purely a performance shortcut.
     var grid = document.getElementById('bookGrid');
     if (grid) {
         try {
@@ -523,6 +513,46 @@
             console.warn('[Books] Could not parse barcode index:', e);
         }
     }
+
+    // ── 1b. Background repair sweep ──────────────────────────────────────
+    // On page load, silently repair any book that has no copy chips rendered.
+    // This creates missing book_copies rows and syncs available_copies for
+    // books that were inserted via raw SQL (bypassing Eloquent boot hooks).
+    // Each repair runs as a separate sequential fetch so the page stays
+    // responsive. We stagger them with a small delay to avoid hammering the
+    // server simultaneously.
+    (function runBackgroundRepairs() {
+        var cards = document.querySelectorAll('.book-card[data-book-id]');
+        var booksNeedingRepair = [];
+
+        cards.forEach(function (card) {
+            var bookId  = card.getAttribute('data-book-id');
+            var modal   = document.getElementById('showModal' + bookId);
+            if (!modal) return;
+            var copiesGrid = modal.querySelector('.show-modal-copies-grid');
+            var hasCopies  = copiesGrid && copiesGrid.children.length > 0;
+            // Also check if the card itself has no barcode chips
+            var hasChips = card.querySelector('.book-card__barcodes') &&
+                           card.querySelector('.book-card__barcode-chip');
+            if (!hasCopies || !hasChips) {
+                booksNeedingRepair.push(bookId);
+            }
+        });
+
+        if (booksNeedingRepair.length === 0) return;
+
+        console.log('[Books] Background repair needed for', booksNeedingRepair.length, 'book(s)');
+
+        // Process one at a time with a small stagger
+        booksNeedingRepair.forEach(function (bookId, idx) {
+            setTimeout(function () {
+                var modal = document.getElementById('showModal' + bookId);
+                if (modal && !modal.dataset.repaired) {
+                    repairAndRenderCopies(modal, bookId);
+                }
+            }, idx * 300); // 300 ms between each repair request
+        });
+    }());
 
     // ── 2. On modal open: repair missing copies (if needed) + lazy-load history
     // Uses historySection.dataset.loaded as the flag (instead of a closure
@@ -887,7 +917,14 @@
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             }
         })
-        .then(function (r) { return r.json(); })
+        .then(function (r) {
+            // Always parse JSON regardless of HTTP status.
+            // If the body is not JSON (e.g. an HTML error page), surface a
+            // clear message instead of the generic catch fallback.
+            return r.json().catch(function () {
+                throw new Error('Server returned a non-JSON response (HTTP ' + r.status + '). Check the Laravel log.');
+            });
+        })
         .then(function (data) {
             if (!data.success) {
                 showBorrowAlert(alertEl, 'danger', data.message || 'Failed to borrow book.');
@@ -895,31 +932,45 @@
                 return;
             }
 
-            // Success — update DOM, no reload
+            // ── Borrow succeeded ──────────────────────────────────────────
+            // Show the success toast first so the user sees confirmation
+            // even if any subsequent DOM update throws.
             toastr.success(data.message || 'Book borrowed successfully!');
 
-            var newAvailable = (data.book && data.book.available_copies !== undefined)
-                ? parseInt(data.book.available_copies, 10) : null;
-            var newTotal = (data.book && data.book.copies !== undefined)
-                ? parseInt(data.book.copies, 10) : null;
+            // Close the modal before updating the DOM so the user sees the
+            // toast against the grid, not inside an open modal.
+            try {
+                bootstrap.Modal.getOrCreateInstance(modal).hide();
+            } catch (e) {
+                console.warn('[Borrow] Modal hide error:', e);
+            }
 
-            updateBookCard(bookId, newAvailable, newTotal);
-            updateModalBody(modal, bookId, newAvailable, newTotal);
+            // Update DOM — wrapped so a rendering bug never hides the toast
+            try {
+                var newAvailable = (data.book && data.book.available_copies !== undefined)
+                    ? parseInt(data.book.available_copies, 10) : null;
+                var newTotal = (data.book && data.book.copies !== undefined)
+                    ? parseInt(data.book.copies, 10) : null;
 
-            // Clear form fields
-            if (studentNameEl) studentNameEl.value = '';
-            if (courseEl)      courseEl.value      = '';
-            if (sectionEl)     sectionEl.value     = '';
-            if (alertEl)       alertEl.classList.add('d-none');
+                updateBookCard(bookId, newAvailable, newTotal);
+                updateModalBody(modal, bookId, newAvailable, newTotal);
 
-            // Reset history so it re-fetches on next modal open
-            resetHistorySection(bookId);
+                if (studentNameEl) studentNameEl.value = '';
+                if (courseEl)      courseEl.value      = '';
+                if (sectionEl)     sectionEl.value     = '';
+                if (alertEl)       alertEl.classList.add('d-none');
 
-            // Close the modal
-            bootstrap.Modal.getOrCreateInstance(modal).hide();
+                resetHistorySection(bookId);
+            } catch (e) {
+                // DOM update failed but borrow already succeeded — log only
+                console.error('[Borrow] DOM update error:', e);
+            }
         })
-        .catch(function () {
-            showBorrowAlert(alertEl, 'danger', 'An error occurred. Please try again.');
+        .catch(function (err) {
+            // Only reached if the fetch itself failed (network error) or
+            // r.json() could not parse the response body.
+            console.error('[Borrow] Fetch error:', err);
+            showBorrowAlert(alertEl, 'danger', err.message || 'Network error. Please check your connection.');
             if (submitBtn) submitBtn.disabled = false;
         });
     }
