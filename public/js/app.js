@@ -220,6 +220,13 @@ document.addEventListener('DOMContentLoaded', function () {
         // Skip per-book modal borrow forms — they are handled by submitBorrowForm()
         // in books/index.blade.php and must not get a competing submit listener.
         if (form.classList.contains('book-borrow-form')) return;
+        // Skip forms whose action contains '/borrowings' — the borrowings index
+        // route is GET-only (search/filter) and must never be POST-intercepted.
+        // The selector 'form[action*="/borrow"]' is intentionally broad but
+        // /borrowings contains /borrow as a substring, causing a false match.
+        var action = (form.getAttribute('action') || '').toLowerCase();
+        if (action.indexOf('/borrowings') !== -1) return;
+        if (action.indexOf('/borrowing/') !== -1) return;
 
         form.addEventListener('submit', function (e) {
             e.preventDefault();

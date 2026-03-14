@@ -14,10 +14,11 @@ class BookController extends Controller
     public function index()
     {
         // Eager-load only bookCopies — borrowings are loaded lazily per-book
-        // via AJAX when a modal opens, so we don't need them here.
-        // Removing the unused $borrowings variable eliminates ~50 redundant
-        // queries that were firing on every page load.
-        $books = Book::with('bookCopies')->get();
+        // via AJAX when a modal opens.
+        // orderBy on the DB level so MySQL does the sort efficiently.
+        $books = Book::with('bookCopies')
+                     ->orderByRaw('LOWER(title)')
+                     ->get();
 
         return view('books.index', compact('books'));
     }

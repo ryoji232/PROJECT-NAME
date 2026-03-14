@@ -4,61 +4,132 @@
 
 
 <div class="hero-section">
-    <h1>📚 Book Collection</h1>
-    <p>Manage your library's books and borrowing records</p>
+    <h1>Book Collection</h1>
+    <p>Manage, search, and borrow books from the library catalogue</p>
 </div>
 
 
 <?php echo $__env->make('partials.alerts', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
 
 
-<div class="card mb-4">
-    <div class="card-header">➕ Add New Book</div>
-    <div class="card-body">
-        <form action="<?php echo e(route('books.store')); ?>" method="POST" class="row g-2 align-items-end">
-            <?php echo csrf_field(); ?>
-            <div class="col-md-4">
-                <label class="form-label fw-semibold">Title</label>
-                <input type="text" name="title" class="form-control" placeholder="Book title" required>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label fw-semibold">Author</label>
-                <input type="text" name="author" class="form-control" placeholder="Author name" required>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label fw-semibold">Copies</label>
-                <input type="number" name="copies" class="form-control" value="1" min="1" max="10">
-            </div>
-            <div class="col-md-3">
-                <button type="submit" class="btn btn-success w-100">Add Book</button>
-            </div>
-        </form>
+<div class="books-toolbar">
+
+    
+    <div class="books-toolbar__add">
+        <button class="btn btn-success btn-sm"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#addBookCollapse"
+                aria-expanded="false"
+                aria-controls="addBookCollapse">
+            ➕ Add New Book
+        </button>
+    </div>
+
+    
+    <div class="books-toolbar__search">
+        <div class="books-search-wrap">
+            <span class="books-search-icon">🔍</span>
+            <input type="text"
+                   id="bookSearchInput"
+                   class="books-search-input"
+                   placeholder="Search by title or author…"
+                   autocomplete="off"
+                   spellcheck="false">
+            <button class="books-search-clear" id="bookSearchClear" title="Clear search" aria-label="Clear search">✕</button>
+        </div>
+        <div class="books-search-meta" id="bookSearchMeta"></div>
+    </div>
+
+</div>
+
+
+<div class="collapse" id="addBookCollapse">
+    <div class="card mb-3">
+        <div class="card-header">➕ Add New Book</div>
+        <div class="card-body">
+            <form action="<?php echo e(route('books.store')); ?>" method="POST" class="row g-2 align-items-end">
+                <?php echo csrf_field(); ?>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Title</label>
+                    <input type="text" name="title" class="form-control" placeholder="Book title" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Author</label>
+                    <input type="text" name="author" class="form-control" placeholder="Author name" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Copies</label>
+                    <input type="number" name="copies" class="form-control" value="1" min="1" max="10">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-success w-100">Add Book</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
 
 <div class="scanner-hint-bar">
-    <span class="scanner-icon">🔍</span>
-    <span>Barcode scanner active — scan any book copy to open its details instantly.</span>
+    <span class="scanner-icon">📡</span>
+    <span>Barcode scanner active — scan any book copy barcode to open its details instantly.</span>
 </div>
 
 
+
+
+<div id="noSearchResults" class="no-records" style="display:none;">
+    <div class="no-records-icon">🔍</div>
+    <h3>No books match your search</h3>
+    <p>Try a different title or author name.</p>
+</div>
+
 <?php if($books->count() > 0): ?>
 
-    
-    <div id="bookGrid"
-         class="book-grid"
-         data-barcode-index="<?php echo e(json_encode(
-             $books->flatMap(function ($book) {
-                 return $book->bookCopies->mapWithKeys(function ($copy) use ($book) {
-                     return [
-                         \App\Models\BookCopy::normalizeBarcode($copy->barcode) => $book->id
-                     ];
-                 });
-             })->toArray()
-         )); ?>">
+    <?php
+        // Sort A–Z by title (collection, no extra query)
+        $sortedBooks = $books->sortBy(function ($b) {
+            return mb_strtolower(trim($b->title));
+        });
 
-        <?php $__currentLoopData = $books; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $book): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+        // Group by first letter; non-alpha titles go under '#'
+        $grouped = $sortedBooks->groupBy(function ($b) {
+            $first = mb_strtoupper(mb_substr(trim($b->title), 0, 1));
+            return preg_match('/[A-Z]/', $first) ? $first : '#';
+        });
+
+        // Build the barcode → bookId index across all books
+        $barcodeIndex = $sortedBooks->flatMap(function ($book) {
+            return $book->bookCopies->mapWithKeys(function ($copy) use ($book) {
+                return [
+                    \App\Models\BookCopy::normalizeBarcode($copy->barcode) => $book->id
+                ];
+            });
+        })->toArray();
+    ?>
+
+    
+    <div class="alpha-jumpbar" id="alphaJumpbar">
+        <?php $__currentLoopData = $grouped->keys()->sort(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $letter): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <a href="#alpha-<?php echo e($letter); ?>" class="alpha-jumpbar__link"><?php echo e($letter); ?></a>
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+    </div>
+
+    
+    <div id="bookGrid" data-barcode-index="<?php echo e(json_encode($barcodeIndex)); ?>">
+
+        <?php $__currentLoopData = $grouped->sortKeys(); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $letter => $letterBooks): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+
+            
+            <div class="alpha-section" id="alpha-<?php echo e($letter); ?>" data-letter="<?php echo e($letter); ?>">
+                <div class="alpha-section__header">
+                    <span class="alpha-section__letter"><?php echo e($letter); ?></span>
+                    <span class="alpha-section__count"><?php echo e($letterBooks->count()); ?> <?php echo e(Str::plural('book', $letterBooks->count())); ?></span>
+                </div>
+                <div class="book-grid">
+
+        <?php $__currentLoopData = $letterBooks; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $book): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
             <?php
                 $availableCopies = $book->available_copies ?? 0;
                 $totalCopies     = $book->copies ?? 0;
@@ -77,6 +148,8 @@
             
             <div class="book-card <?php echo e($isAvailable ? '' : 'book-card--unavailable'); ?>"
                  data-book-id="<?php echo e($book->id); ?>"
+                 data-title="<?php echo e(mb_strtolower($book->title)); ?>"
+                 data-author="<?php echo e(mb_strtolower($book->author)); ?>"
                  data-copy-barcodes="<?php echo e(json_encode($copyBarcodes)); ?>"
                  data-bs-toggle="modal"
                  data-bs-target="#showModal<?php echo e($book->id); ?>"
@@ -90,9 +163,6 @@
                     <?php echo e($isAvailable ? '✅ Available' : '❌ Unavailable'); ?>
 
                 </span>
-
-                
-                <div class="book-card__icon">📖</div>
 
                 
                 <h3 class="book-card__title"><?php echo e($book->title); ?></h3>
@@ -131,7 +201,7 @@
                         <div class="modal-header show-modal-header">
                             <div>
                                 <h5 class="modal-title fw-bold" id="showModalLabel<?php echo e($book->id); ?>">
-                                    📖 <?php echo e($book->title); ?>
+                                    <?php echo e($book->title); ?>
 
                                 </h5>
                                 <small class="text-white-50">by <?php echo e($book->author); ?></small>
@@ -174,11 +244,11 @@
                                             </div>
                                             <div class="show-modal-copy__status">
                                                 <?php if($copy->status === 'available'): ?>
-                                                    ✅ Available
+                                                     Available
                                                 <?php elseif($copy->status === 'damaged'): ?>
                                                     🔧 Damaged
                                                 <?php else: ?>
-                                                    📤 Borrowed
+                                                     Borrowed
                                                 <?php endif; ?>
                                             </div>
                                         </div>
@@ -189,7 +259,7 @@
                             
                             <?php if($isAvailable): ?>
                                 <div class="show-modal-borrow-section mt-4">
-                                    <h6 class="fw-bold mb-3">📝 Borrow This Book</h6>
+                                    <h6 class="fw-bold mb-3"> Borrow This Book</h6>
                                     <form class="book-borrow-form"
                                           action="<?php echo e(route('borrow.store')); ?>"
                                           data-book-id="<?php echo e($book->id); ?>">
@@ -232,7 +302,7 @@
                             
                             <div class="show-modal-history-section mt-4"
                                  id="historySection<?php echo e($book->id); ?>">
-                                <h6 class="fw-bold mb-2">📋 Borrowing History</h6>
+                                <h6 class="fw-bold mb-2"> Borrowing History</h6>
                                 <div class="show-modal-history-loading text-muted text-center py-2">
                                     <small>Loading history…</small>
                                 </div>
@@ -292,13 +362,19 @@
             
 
         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+
+                </div>
+            </div>
+
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+
     </div>
 
 <?php else: ?>
     <div class="no-records">
         <div class="no-records-icon">📚</div>
         <h3>No Books Yet</h3>
-        <p>Add your first book using the form above.</p>
+        <p>Use the "Add New Book" button above to add your first book.</p>
     </div>
 <?php endif; ?>
 
@@ -308,6 +384,72 @@
 
 <?php $__env->startPush('styles'); ?>
 <style>
+/* ═══════════════════════════════════════════════════════════════════════
+   Books page styles
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Toolbar (add button + search) ───────────────────────────────────── */
+.books-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+.books-toolbar__add { flex-shrink: 0; }
+.books-toolbar__search { flex: 1; min-width: 220px; }
+
+/* ── Search bar ───────────────────────────────────────────────────────── */
+.books-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.books-search-icon {
+    position: absolute;
+    left: 0.85rem;
+    font-size: 1rem;
+    pointer-events: none;
+    z-index: 1;
+}
+.books-search-input {
+    width: 100%;
+    padding: 0.55rem 2.4rem 0.55rem 2.3rem;
+    border: 1.5px solid #dee2e6;
+    border-radius: 2rem;
+    font-size: 0.92rem;
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+}
+.books-search-input:focus {
+    border-color: #198754;
+    box-shadow: 0 0 0 3px rgba(25,135,84,0.15);
+}
+.books-search-input::placeholder { color: #adb5bd; }
+.books-search-clear {
+    position: absolute;
+    right: 0.7rem;
+    background: none;
+    border: none;
+    color: #adb5bd;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0.15rem 0.3rem;
+    border-radius: 50%;
+    line-height: 1;
+    display: none;
+}
+.books-search-clear:hover { background: #f0f0f0; color: #495057; }
+.books-search-clear.visible { display: block; }
+.books-search-meta {
+    font-size: 0.78rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+    padding-left: 0.9rem;
+    min-height: 1rem;
+}
+
 /* ── Scanner hint bar ─────────────────────────────────────────────────── */
 .scanner-hint-bar {
     display: flex;
@@ -318,18 +460,80 @@
     border-radius: 0.6rem;
     padding: 0.65rem 1.1rem;
     margin-bottom: 1.5rem;
-    font-size: 0.9rem;
+    font-size: 0.88rem;
     color: #1b5e20;
     font-weight: 500;
 }
-.scanner-hint-bar .scanner-icon { font-size: 1.1rem; }
+.scanner-hint-bar .scanner-icon { font-size: 1rem; }
+
+/* ── Alphabet jump-bar ────────────────────────────────────────────────── */
+.alpha-jumpbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-bottom: 1.75rem;
+    padding: 0.6rem 0.8rem;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.6rem;
+}
+.alpha-jumpbar__link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.4rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #198754;
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid #c3e6cb;
+    transition: background 0.15s, color 0.15s, transform 0.1s;
+    letter-spacing: 0.3px;
+}
+.alpha-jumpbar__link:hover {
+    background: #198754;
+    color: #fff;
+    border-color: #198754;
+    transform: translateY(-2px);
+}
+.alpha-jumpbar__link.alpha-hidden { display: none; }
+
+/* ── Letter section ───────────────────────────────────────────────────── */
+.alpha-section { margin-bottom: 2.5rem; }
+.alpha-section__header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #198754;
+}
+.alpha-section__letter {
+    font-size: 1.9rem;
+    font-weight: 900;
+    color: #198754;
+    line-height: 1;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+.alpha-section__count {
+    font-size: 0.78rem;
+    color: #6c757d;
+    font-weight: 500;
+    background: #f0fdf4;
+    border: 1px solid #c3e6cb;
+    border-radius: 1rem;
+    padding: 0.15rem 0.55rem;
+}
 
 /* ── Book grid ────────────────────────────────────────────────────────── */
 .book-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 3rem;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 0;
 }
 
 /* ── Book card ────────────────────────────────────────────────────────── */
@@ -500,6 +704,98 @@
 
 (function () {
     'use strict';
+
+    // ── 0. Live search ────────────────────────────────────────────────────
+    //
+    // Filters book cards and alpha-section headers as the user types.
+    // No server round-trip — all books are already in the DOM.
+    // Matches against data-title and data-author (lowercase, trimmed).
+    // Hides empty letter sections and their jumpbar links automatically.
+
+    var searchInput  = document.getElementById('bookSearchInput');
+    var searchClear  = document.getElementById('bookSearchClear');
+    var searchMeta   = document.getElementById('bookSearchMeta');
+    var noResults    = document.getElementById('noSearchResults');
+    var jumpbar      = document.getElementById('alphaJumpbar');
+
+    function runSearch() {
+        var raw   = searchInput ? searchInput.value : '';
+        var query = raw.trim().toLowerCase();
+
+        // Toggle clear button
+        if (searchClear) {
+            if (query.length > 0) {
+                searchClear.classList.add('visible');
+            } else {
+                searchClear.classList.remove('visible');
+            }
+        }
+
+        var cards        = document.querySelectorAll('.book-card[data-book-id]');
+        var totalVisible = 0;
+
+        cards.forEach(function (card) {
+            var title  = (card.getAttribute('data-title')  || '').toLowerCase();
+            var author = (card.getAttribute('data-author') || '').toLowerCase();
+            var match  = query === '' || title.indexOf(query) !== -1 || author.indexOf(query) !== -1;
+            card.style.display = match ? '' : 'none';
+            if (match) totalVisible++;
+        });
+
+        // Hide/show alpha sections and their jumpbar links
+        var sections = document.querySelectorAll('.alpha-section');
+        sections.forEach(function (section) {
+            var letter         = section.getAttribute('data-letter');
+            var visibleInGroup = section.querySelectorAll('.book-card:not([style*="display: none"])').length;
+            var hide           = visibleInGroup === 0;
+            section.style.display = hide ? 'none' : '';
+
+            // Sync jumpbar link
+            if (jumpbar && letter) {
+                var link = jumpbar.querySelector('[href="#alpha-' + letter + '"]');
+                if (link) {
+                    if (hide) link.classList.add('alpha-hidden');
+                    else      link.classList.remove('alpha-hidden');
+                }
+            }
+        });
+
+        // No-results message
+        if (noResults) {
+            noResults.style.display = (query !== '' && totalVisible === 0) ? '' : 'none';
+        }
+
+        // Search meta text
+        if (searchMeta) {
+            if (query === '') {
+                searchMeta.textContent = '';
+            } else if (totalVisible === 0) {
+                searchMeta.textContent = 'No books found';
+            } else {
+                searchMeta.textContent = totalVisible + ' book' + (totalVisible === 1 ? '' : 's') + ' found';
+            }
+        }
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', runSearch);
+        searchInput.addEventListener('keydown', function (e) {
+            // Escape clears the search
+            if (e.key === 'Escape') {
+                searchInput.value = '';
+                runSearch();
+                searchInput.blur();
+            }
+        });
+    }
+
+    if (searchClear) {
+        searchClear.addEventListener('click', function () {
+            if (searchInput) searchInput.value = '';
+            runSearch();
+            if (searchInput) searchInput.focus();
+        });
+    }
 
     // ── 1. Expose barcode → bookId lookup map for the scanner ────────────
     var grid = document.getElementById('bookGrid');
