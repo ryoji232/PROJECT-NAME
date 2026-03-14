@@ -47,10 +47,14 @@ Route::middleware(['auth:librarian'])->group(function () {
     Route::put('/librarian/update-password', [LibrarianAuthController::class, 'updatePassword'])->name('librarian.update.password');
     
     // Books Routes
+    // Repair-all must be declared BEFORE Route::resource so Laravel does not
+    // mistake POST /books/repair-all for the resource store() route.
+    Route::post('/books/repair-all', [BookController::class, 'repairAllBooks'])->name('books.repair.all');
     Route::resource('books', BookController::class);
     Route::get('/books/{bookId}/borrowing-data', [BookController::class, 'getBorrowingData'])->name('books.borrowing.data');
     Route::get('/books/{id}/copies', [BookController::class, 'getBookCopies'])->name('books.copies');
     Route::get('/books/{id}/history', [BookController::class, 'getBookHistory'])->name('books.history');
+    Route::post('/books/{id}/repair', [BookController::class, 'repairBook'])->name('books.repair');
     
     // Barcode Routes
     Route::post('/books/scan-barcode', [BookController::class, 'scanBarcode'])->name('books.scan.barcode');

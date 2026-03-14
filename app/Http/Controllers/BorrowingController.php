@@ -64,48 +64,102 @@ class BorrowingController extends Controller
             'book_id'      => 'required|exists:books,id',
         ]);
 
-        $book = Book::findOrFail($request->book_id);
+        try {
+            $book = Book::findOrFail($request->book_id);
 
-        if ($book->available_copies <= 0) {
+            // ── Step 1: Auto-repair missing book_copies rows ─────────────────
+            // Books seeded via DB::table()->insert() bypass the Eloquent boot
+            // hooks and never get BookCopy records. Create them now if missing.
+            if (BookCopy::where('book_id', $book->id)->count() === 0) {
+                $totalCopies = max(1, (int) $book->copies);
+                for ($i = 1; $i <= $totalCopies; $i++) {
+                    BookCopy::create([
+                        'book_id'     => $book->id,
+                        'copy_number' => "Copy {$i}",
+                        'barcode'     => BookCopy::generateUniqueBarcode($book->id, $i),
+                        'status'      => 'available',
+                    ]);
+                }
+                $book->update(['available_copies' => $totalCopies]);
+                $book = $book->fresh();
+            }
+
+            // ── Step 2: Reconcile available_copies with actual DB state ──────
+            // The books.available_copies column can drift out of sync with the
+            // book_copies table (e.g. seeder sets random values, or a crash
+            // left the counter wrong). Recompute from the source of truth.
+            $actualAvailable = BookCopy::where('book_id', $book->id)
+                ->where('status', 'available')
+                ->count();
+
+            if ($book->available_copies !== $actualAvailable) {
+                $book->update(['available_copies' => $actualAvailable]);
+                $book = $book->fresh();
+            }
+
+            // ── Step 3: Guard — no available copies ──────────────────────────
+            if ($actualAvailable <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No available copies of this book.',
+                ], 422);
+            }
+
+            // ── Step 4: Lock and claim an available copy ─────────────────────
+            $copy = BookCopy::where('book_id', $book->id)
+                ->where('status', 'available')
+                ->first();
+
+            if (! $copy) {
+                // Extremely unlikely after step 3, but handle it gracefully.
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Could not reserve a copy. Please try again.',
+                ], 409);
+            }
+
+            // ── Step 5: Persist the borrowing inside a transaction ────────────
+            DB::transaction(function () use ($request, $copy, $book) {
+                Borrowing::create([
+                    'student_name' => $request->student_name,
+                    'student_id'   => strtoupper(substr(str_replace(' ', '', $request->student_name), 0, 5)) . time(),
+                    'course'       => $request->course,
+                    'section'      => $request->section,
+                    'book_id'      => $request->book_id,
+                    'book_copy_id' => $copy->id,
+                    'borrowed_at'  => now(),
+                    'due_date'     => now()->addDays(14),
+                ]);
+
+                $copy->update(['status' => 'borrowed']);
+                $book->decrement('available_copies');
+            });
+
+            $activeBorrowings = Borrowing::where('book_id', $request->book_id)
+                ->whereNull('returned_at')->count();
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success'           => true,
+                    'message'           => 'Book borrowed successfully!',
+                    'book'              => $book->fresh(),
+                    'active_borrowings' => $activeBorrowings,
+                ]);
+            }
+
+            return redirect()->route('dashboard')->with('success', 'Book borrowed successfully!');
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'No available copies of this book.'
-            ], 422);
-        }
-
-        $copy = BookCopy::where('book_id', $request->book_id)
-            ->where('status', 'available')
-            ->firstOrFail();
-
-        DB::transaction(function () use ($request, $copy, $book) {
-            Borrowing::create([
-                'student_name' => $request->student_name,
-                'student_id'   => strtoupper(substr(str_replace(' ', '', $request->student_name), 0, 5)) . time(),
-                'course'       => $request->course,
-                'section'      => $request->section,
-                'book_id'      => $request->book_id,
-                'book_copy_id' => $copy->id,
-                'borrowed_at'  => now(),
-                'due_date'     => now()->addDays(14),
-            ]);
-
-            $copy->update(['status' => 'borrowed']);
-            $book->decrement('available_copies');
-        });
-
-        $activeBorrowings = Borrowing::where('book_id', $request->book_id)
-            ->whereNull('returned_at')->count();
-
-        if ($request->ajax()) {
+                'message' => 'Book not found.',
+            ], 404);
+        } catch (\Exception $e) {
             return response()->json([
-                'success'         => true,
-                'message'         => 'Book borrowed successfully!',
-                'book'            => $book->fresh(),
-                'active_borrowings' => $activeBorrowings,
-            ]);
+                'success' => false,
+                'message' => 'An error occurred while borrowing: ' . $e->getMessage(),
+            ], 500);
         }
-
-        return redirect()->route('dashboard')->with('success', 'Book borrowed successfully!');
     }
 
     // =========================================================

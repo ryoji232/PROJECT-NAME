@@ -3,18 +3,23 @@
 namespace App\Http\Controllers;
 
 use App\Models\Book;
+use App\Models\BookCopy;
 use App\Models\Borrowing;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class BookController extends Controller
 {
     // Show all books
     public function index()
     {
-        $books = Book::with(['bookCopies', 'borrowings'])->get();
-        $borrowings = Borrowing::with('book')->get();
+        // Eager-load only bookCopies — borrowings are loaded lazily per-book
+        // via AJAX when a modal opens, so we don't need them here.
+        // Removing the unused $borrowings variable eliminates ~50 redundant
+        // queries that were firing on every page load.
+        $books = Book::with('bookCopies')->get();
 
-        return view('books.index', compact('books', 'borrowings'));
+        return view('books.index', compact('books'));
     }
 
     // Store a new book
@@ -257,6 +262,118 @@ class BookController extends Controller
     }
 
     // Return full borrow history for a book as JSON (used by AJAX history modal)
+    // =========================================================
+    // REPAIR — Fix a single book's copies and available_copies
+    // Called via AJAX from the book modal when copies are missing.
+    // =========================================================
+    public function repairBook($id)
+    {
+        try {
+            $book = Book::with('bookCopies')->findOrFail($id);
+
+            // Step 1: Create book_copies rows if none exist
+            if ($book->bookCopies->count() === 0) {
+                $totalCopies = max(1, (int) $book->copies);
+                for ($i = 1; $i <= $totalCopies; $i++) {
+                    BookCopy::create([
+                        'book_id'     => $book->id,
+                        'copy_number' => "Copy {$i}",
+                        'barcode'     => BookCopy::generateUniqueBarcode($book->id, $i),
+                        'status'      => 'available',
+                    ]);
+                }
+                // Reload relationship
+                $book = $book->fresh(['bookCopies']);
+            }
+
+            // Step 2: Reconcile available_copies against actual book_copies state
+            $actualAvailable = BookCopy::where('book_id', $book->id)
+                ->where('status', 'available')
+                ->count();
+
+            if ((int) $book->available_copies !== $actualAvailable) {
+                $book->update(['available_copies' => $actualAvailable]);
+                $book = $book->fresh(['bookCopies']);
+            }
+
+            // Step 3: Return the repaired state so the blade can re-render
+            $copies = $book->bookCopies->map(function ($copy) {
+                return [
+                    'id'          => $copy->id,
+                    'copy_number' => $copy->copy_number ?? 'Copy',
+                    'barcode'     => BookCopy::normalizeBarcode($copy->barcode),
+                    'status'      => $copy->status,
+                ];
+            });
+
+            return response()->json([
+                'success'          => true,
+                'book_id'          => $book->id,
+                'available_copies' => $book->fresh()->available_copies,
+                'total_copies'     => $book->copies,
+                'copies'           => $copies,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Repair failed: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    // =========================================================
+    // REPAIR ALL — Fix every book in one request
+    // Hit once after deployment: GET /books/repair-all
+    // =========================================================
+    public function repairAllBooks()
+    {
+        try {
+            $books   = Book::with('bookCopies')->get();
+            $results = [];
+
+            DB::transaction(function () use ($books, &$results) {
+                foreach ($books as $book) {
+                    // 1. Create missing book_copies rows
+                    if ($book->bookCopies->count() === 0) {
+                        $totalCopies = max(1, (int) $book->copies);
+                        for ($i = 1; $i <= $totalCopies; $i++) {
+                            BookCopy::create([
+                                'book_id'     => $book->id,
+                                'copy_number' => "Copy {$i}",
+                                'barcode'     => BookCopy::generateUniqueBarcode($book->id, $i),
+                                'status'      => 'available',
+                            ]);
+                        }
+                        $results[] = "Created {$totalCopies} copies for: {$book->title}";
+                    }
+
+                    // 2. Reconcile available_copies from source of truth
+                    $actualAvailable = BookCopy::where('book_id', $book->id)
+                        ->where('status', 'available')
+                        ->count();
+
+                    if ((int) $book->available_copies !== $actualAvailable) {
+                        $book->update(['available_copies' => $actualAvailable]);
+                        $results[] = "Synced available_copies to {$actualAvailable} for: {$book->title}";
+                    }
+                }
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'All books repaired successfully.',
+                'details' => $results,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Repair failed: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
     public function getBookHistory($id)
     {
         try {

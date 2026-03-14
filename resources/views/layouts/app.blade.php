@@ -27,6 +27,39 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+
+    {{-- Flash notifications: fires toastr for add book / delete book / borrow --}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            toastr.options = {
+                closeButton:     true,
+                progressBar:     true,
+                positionClass:   'toast-top-right',
+                timeOut:         4000,
+                extendedTimeOut: 1000
+            };
+            @if(session('success'))
+                toastr.success("{{ addslashes(session('success')) }}");
+            @endif
+            @if(session('error'))
+                toastr.error("{{ addslashes(session('error')) }}");
+            @endif
+            @if(session('warning'))
+                toastr.warning("{{ addslashes(session('warning')) }}");
+            @endif
+            @if(session('info'))
+                toastr.info("{{ addslashes(session('info')) }}");
+            @endif
+        });
+    </script>
+
+    {{-- Route URLs for static JS files that cannot use Blade directives --}}
+    <script>
+        window.__routes = {
+            borrowByBarcode: "{{ route('borrow.by.barcode') }}"
+        };
+    </script>
+
     <script src="{{ asset('js/app.js') }}"></script>
 
     @stack('scripts')

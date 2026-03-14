@@ -78,7 +78,16 @@ function showReturnModal(borrowingId) {
 function initBarcodeScanner() {
     let buffer = '';
     let timer  = null;
-    const SAFE = ['borrow_student_name', 'borrow_course', 'borrow_section'];
+    // IDs that are always safe to type into (old scanner-borrow modal).
+    const SAFE_IDS = ['borrow_student_name', 'borrow_course', 'borrow_section'];
+    // ID prefixes for per-book modal borrow form inputs (e.g. modal_student_name_5).
+    const SAFE_PREFIXES = ['modal_student_name_', 'modal_course_', 'modal_section_'];
+
+    function isSafeInput(el) {
+        if (!el || !el.id) return false;
+        if (SAFE_IDS.includes(el.id)) return true;
+        return SAFE_PREFIXES.some(function (prefix) { return el.id.startsWith(prefix); });
+    }
 
     function isFormField() {
         const el  = document.activeElement;
@@ -89,23 +98,39 @@ function initBarcodeScanner() {
     function process(raw) {
         const barcode = raw.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 
-        // Copy barcode → borrow flow
+        // ── Alphanumeric → copy-level barcode ────────────────────────────────
+        // Resolution order:
+        //   1. Check window.__barcodeBookIndex (populated by books/index.blade.php)
+        //      — zero network cost, instant lookup on the Books page.
+        //   2. Fall back to AJAX /copies/scan/{code} so scanning works on ANY
+        //      page in the app (dashboard, borrowings list, etc.).
+        //
+        // In both cases the resolved book id is passed to openBookShowModal(),
+        // which opens the per-book modal (id="showModal{bookId}") — identical
+        // to the behaviour when a librarian clicks the book card manually.
         if (/^[A-Z0-9]{4,12}$/.test(barcode)) {
+            // ── Fast path: client-side index ─────────────────────────────────
+            const localIndex = window.__barcodeBookIndex || {};
+            if (localIndex[barcode] !== undefined) {
+                openBookShowModal(localIndex[barcode]);
+                return;
+            }
+
+            // ── Slow path: AJAX lookup ────────────────────────────────────────
             fetch(`/copies/scan/${encodeURIComponent(barcode)}`, { credentials: 'same-origin' })
                 .then(r => r.json())
                 .then(data => {
-                    if (data?.success && data.copy) {
-                        showBorrowModal(data.copy);
+                    if (data?.success && data.copy?.book?.id) {
+                        openBookShowModal(data.copy.book.id);
                     } else {
-                        toastr.warning('Barcode not found — opening manual borrow modal');
-                        showBorrowModal({ barcode, book: { title: 'Unknown Book', author: '' }, _fromScannerFallback: true });
+                        toastr.error('Barcode not recognised. Please use the manual borrow form.');
                     }
                 })
-                .catch(err => toastr.error('Error: ' + err.message));
+                .catch(err => toastr.error('Scanner error: ' + err.message));
             return;
         }
 
-        // Numeric → return flow
+        // ── Numeric → return flow ─────────────────────────────────────────────
         const returnId = /^\d+$/.test(barcode)
             ? barcode
             : (raw.match(/\/return\/(\d+)|return\/(\d+)/) || [])[1];
@@ -113,12 +138,34 @@ function initBarcodeScanner() {
         returnId ? showReturnModal(returnId) : toastr.error('Invalid barcode format');
     }
 
+    // Opens the per-book showModal (same as clicking the book card).
+    // Works on any page that has the modal rendered; silently does nothing otherwise.
+    function openBookShowModal(bookId) {
+        const modalEl = document.getElementById('showModal' + bookId);
+        if (modalEl) {
+            // Close any currently open modal first
+            document.querySelectorAll('.modal.show').forEach(function(m) {
+                const instance = bootstrap.Modal.getInstance(m);
+                if (instance) instance.hide();
+            });
+            setTimeout(function() {
+                new bootstrap.Modal(modalEl).show();
+            }, 150);
+        } else {
+            // Not on the books page — nothing to open
+            toastr.info('Book found. Navigate to the Books page to borrow it.');
+        }
+    }
+
     document.addEventListener('keydown', function(e) {
         const el      = document.activeElement;
-        const isSafe  = SAFE.includes(el?.id);
+        const safe    = isSafeInput(el);
         const isField = isFormField();
 
-        if ((isSafe || (isField && el?.id !== 'barcodeScannerInput')) && e.key.length === 1) return;
+        // Let the keystroke through if the focus is in any known text input
+        // (either by explicit SAFE id/prefix, or any form field that is NOT
+        // the hidden barcode input shim).
+        if ((safe || (isField && el?.id !== 'barcodeScannerInput')) && e.key.length === 1) return;
 
         if (e.key === 'Enter') {
             if (buffer.trim().length > 3) {
@@ -153,6 +200,63 @@ document.addEventListener('DOMContentLoaded', function () {
         positionClass: 'toast-top-right', timeOut: '5000'
     };
 
+    // ── Flash-to-Toastr bridge ────────────────────────────────────────────────
+    // window.__flash is injected by the layout (app.blade.php) so we never have
+    // to read hidden DOM elements (innerText returns '' when display:none).
+    if (window.__flash) {
+        if (window.__flash.success) toastr.success(window.__flash.success);
+        if (window.__flash.error)   toastr.error(window.__flash.error);
+        if (window.__flash.info)    toastr.info(window.__flash.info);
+        if (window.__flash.warning) toastr.warning(window.__flash.warning);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ── Manual Borrow AJAX handler ────────────────────────────────────────────
+    // Intercepts any form that submits to the /borrow (borrow.store) route so
+    // the result shows as a toastr toast instead of a plain page redirect.
+    document.querySelectorAll('form[action*="/borrow"]').forEach(function (form) {
+        // Skip the barcode borrow form — it already has its own handler above
+        if (form.id === 'borrowByBarcodeForm') return;
+        // Skip per-book modal borrow forms — they are handled by submitBorrowForm()
+        // in books/index.blade.php and must not get a competing submit listener.
+        if (form.classList.contains('book-borrow-form')) return;
+
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const btn = form.querySelector('[type="submit"]');
+            if (btn) btn.disabled = true;
+
+            fetch(form.action, {
+                method: 'POST',
+                body: new FormData(form),
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                }
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    toastr.success(data.message || 'Book borrowed successfully!');
+                    // Close any modal wrapping this form
+                    const modalEl = form.closest('.modal');
+                    if (modalEl) {
+                        bootstrap.Modal.getInstance(modalEl)?.hide();
+                    }
+                    setTimeout(function () { location.reload(); }, 800);
+                } else {
+                    toastr.error(data.message || 'Failed to borrow book.');
+                    if (btn) btn.disabled = false;
+                }
+            })
+            .catch(function () {
+                toastr.error('An error occurred while borrowing the book.');
+                if (btn) btn.disabled = false;
+            });
+        });
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
     // Return modal singleton
     const returnModalEl = document.getElementById('barcodeReturnModal');
     if (returnModalEl) returnModal = new bootstrap.Modal(returnModalEl);
@@ -170,13 +274,19 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('confirmReturnBtn').disabled = !this.checked;
     });
 
-    // Borrow form submit
+    // Borrow form submit (scanner-triggered borrow modal — borrowModal / borrowByBarcodeForm)
     document.getElementById('borrowSubmitBtn')?.addEventListener('click', function () {
         const form = document.getElementById('borrowByBarcodeForm');
         const btn  = this;
         btn.disabled = true;
 
-        fetch("{{ route('borrow.by.barcode') }}", {
+        // The route URL is injected by the Blade layout into window.__routes
+        // because this file is static JS and Blade directives are not processed here.
+        const borrowByBarcodeUrl = (window.__routes && window.__routes.borrowByBarcode)
+            ? window.__routes.borrowByBarcode
+            : '/borrow/by-barcode';
+
+        fetch(borrowByBarcodeUrl, {
             method: 'POST',
             body: new FormData(form),
             headers: {
@@ -244,3 +354,24 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Expose for inline usage
 window.showReturnConfirmationModal = showReturnModal;
+
+// openBookShowModal is defined inside initBarcodeScanner() so it can share
+// the same closure scope as process(). We re-expose it here on window so that
+// inline onclick="openBookShowModal(...)" attributes in Blade templates work.
+// initBarcodeScanner() is called inside DOMContentLoaded (line ~240), so by
+// the time any onclick fires the function is already assigned.
+window.openBookShowModal = function (bookId) {
+    const modalEl = document.getElementById('showModal' + bookId);
+    if (!modalEl) {
+        toastr.info('Book found. Navigate to the Books page to view details.');
+        return;
+    }
+    // Close any currently open modal first, then open the target one.
+    document.querySelectorAll('.modal.show').forEach(function (m) {
+        const instance = bootstrap.Modal.getInstance(m);
+        if (instance) instance.hide();
+    });
+    setTimeout(function () {
+        new bootstrap.Modal(modalEl).show();
+    }, 150);
+};

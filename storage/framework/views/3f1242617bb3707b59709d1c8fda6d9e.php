@@ -1,33 +1,22 @@
-{{--
-    resources/views/books/index.blade.php
-    ─────────────────────────────────────
-    Displays all books as cards.
-    Each card is clickable → opens a per-book show-modal.
-    Each book card carries data-barcode attributes for every copy
-    so the barcode scanner in app.js can map a scanned copy
-    barcode → book id → open the correct showModal.
---}}
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Books — Library System'); ?>
 
-@section('title', 'Books — Library System')
+<?php $__env->startSection('content'); ?>
 
-@section('content')
 
-{{-- ── Hero ────────────────────────────────────────────────────────────── --}}
 <div class="hero-section">
     <h1>📚 Book Collection</h1>
     <p>Manage your library's books and borrowing records</p>
 </div>
 
-{{-- ── Alerts ──────────────────────────────────────────────────────────── --}}
-@include('partials.alerts')
 
-{{-- ── Add-book form card ─────────────────────────────────────────────── --}}
+<?php echo $__env->make('partials.alerts', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+
+
 <div class="card mb-4">
     <div class="card-header">➕ Add New Book</div>
     <div class="card-body">
-        <form action="{{ route('books.store') }}" method="POST" class="row g-2 align-items-end">
-            @csrf
+        <form action="<?php echo e(route('books.store')); ?>" method="POST" class="row g-2 align-items-end">
+            <?php echo csrf_field(); ?>
             <div class="col-md-4">
                 <label class="form-label fw-semibold">Title</label>
                 <input type="text" name="title" class="form-control" placeholder="Book title" required>
@@ -47,26 +36,19 @@
     </div>
 </div>
 
-{{-- ── Scanner hint banner ─────────────────────────────────────────────── --}}
+
 <div class="scanner-hint-bar">
     <span class="scanner-icon">🔍</span>
     <span>Barcode scanner active — scan any book copy to open its details instantly.</span>
 </div>
 
-{{-- ── Book grid ───────────────────────────────────────────────────────── --}}
-@if($books->count() > 0)
 
-    {{--
-        data-barcode-index is a JSON map written server-side:
-            { "COPY_BARCODE": bookId, … }
-        The barcode scanner JS reads this to resolve a copy barcode
-        to a book id without an extra AJAX round-trip.
-        This is a performance optimisation; the AJAX fallback in
-        app.js still works even without this attribute.
-    --}}
+<?php if($books->count() > 0): ?>
+
+    
     <div id="bookGrid"
          class="book-grid"
-         data-barcode-index="{{ json_encode(
+         data-barcode-index="<?php echo e(json_encode(
              $books->flatMap(function ($book) {
                  return $book->bookCopies->mapWithKeys(function ($copy) use ($book) {
                      return [
@@ -74,10 +56,10 @@
                      ];
                  });
              })->toArray()
-         ) }}">
+         )); ?>">
 
-        @foreach($books as $book)
-            @php
+        <?php $__currentLoopData = $books; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $book): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <?php
                 $availableCopies = $book->available_copies ?? 0;
                 $totalCopies     = $book->copies ?? 0;
                 $isAvailable     = $availableCopies > 0;
@@ -89,79 +71,70 @@
                     ->filter()
                     ->values()
                     ->toArray();
-            @endphp
+            ?>
 
-            {{-- ── Book card ───────────────────────────────────────────── --}}
-            {{--
-                Primary open mechanism: Bootstrap data-bs-toggle="modal" +
-                data-bs-target — works with zero JavaScript, immune to
-                the scanner's stopImmediatePropagation.
-                Secondary: onclick calls window.openBookShowModal (exposed
-                in app.js) for programmatic use and scanner-triggered opens.
-                Keyboard (Enter/Space) is handled by a delegated listener
-                in the push-scripts block below.
-            --}}
-            <div class="book-card {{ $isAvailable ? '' : 'book-card--unavailable' }}"
-                 data-book-id="{{ $book->id }}"
-                 data-copy-barcodes="{{ json_encode($copyBarcodes) }}"
+            
+            
+            <div class="book-card <?php echo e($isAvailable ? '' : 'book-card--unavailable'); ?>"
+                 data-book-id="<?php echo e($book->id); ?>"
+                 data-copy-barcodes="<?php echo e(json_encode($copyBarcodes)); ?>"
                  data-bs-toggle="modal"
-                 data-bs-target="#showModal{{ $book->id }}"
+                 data-bs-target="#showModal<?php echo e($book->id); ?>"
                  role="button"
                  tabindex="0"
-                 aria-label="Open details for {{ $book->title }}"
+                 aria-label="Open details for <?php echo e($book->title); ?>"
                  aria-haspopup="dialog">
 
-                {{-- Availability badge --}}
-                <span class="book-card__badge {{ $isAvailable ? 'book-card__badge--available' : 'book-card__badge--unavailable' }}">
-                    {{ $isAvailable ? '✅ Available' : '❌ Unavailable' }}
+                
+                <span class="book-card__badge <?php echo e($isAvailable ? 'book-card__badge--available' : 'book-card__badge--unavailable'); ?>">
+                    <?php echo e($isAvailable ? '✅ Available' : '❌ Unavailable'); ?>
+
                 </span>
 
-                {{-- Book icon --}}
+                
                 <div class="book-card__icon">📖</div>
 
-                {{-- Title & author --}}
-                <h3 class="book-card__title">{{ $book->title }}</h3>
-                <p class="book-card__author">by {{ $book->author }}</p>
+                
+                <h3 class="book-card__title"><?php echo e($book->title); ?></h3>
+                <p class="book-card__author">by <?php echo e($book->author); ?></p>
 
-                {{-- Copy counter --}}
+                
                 <div class="book-card__copies">
-                    <span class="book-card__copies-available">{{ $availableCopies }}</span>
-                    <span class="book-card__copies-label"> / {{ $totalCopies }} copies available</span>
+                    <span class="book-card__copies-available"><?php echo e($availableCopies); ?></span>
+                    <span class="book-card__copies-label"> / <?php echo e($totalCopies); ?> copies available</span>
                 </div>
 
-                {{-- Copy barcodes (small print, useful for librarian reference) --}}
-                @if($book->bookCopies->count() > 0)
+                
+                <?php if($book->bookCopies->count() > 0): ?>
                     <div class="book-card__barcodes">
-                        @foreach($book->bookCopies as $copy)
+                        <?php $__currentLoopData = $book->bookCopies; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $copy): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                             <span class="book-card__barcode-chip
-                                         {{ $copy->status === 'available' ? 'book-card__barcode-chip--available' : 'book-card__barcode-chip--borrowed' }}"
-                                  title="{{ $copy->copy_number }} — {{ ucfirst($copy->status) }}">
-                                {{ \App\Models\BookCopy::normalizeBarcode($copy->barcode) }}
+                                         <?php echo e($copy->status === 'available' ? 'book-card__barcode-chip--available' : 'book-card__barcode-chip--borrowed'); ?>"
+                                  title="<?php echo e($copy->copy_number); ?> — <?php echo e(ucfirst($copy->status)); ?>">
+                                <?php echo e(\App\Models\BookCopy::normalizeBarcode($copy->barcode)); ?>
+
                             </span>
-                        @endforeach
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </div>
-                @endif
+                <?php endif; ?>
 
                 <div class="book-card__cta">Click or scan to open</div>
             </div>
 
-            {{-- ── Per-book show modal ──────────────────────────────────── --}}
-            {{--
-                IMPORTANT: the id must be "showModal{book->id}".
-                The openBookShowModal() function in app.js looks for
-                exactly this id pattern.
-            --}}
-            <div class="modal fade" id="showModal{{ $book->id }}" tabindex="-1"
-                 aria-labelledby="showModalLabel{{ $book->id }}" aria-hidden="true">
+            
+            
+            <div class="modal fade" id="showModal<?php echo e($book->id); ?>" tabindex="-1"
+                 aria-labelledby="showModalLabel<?php echo e($book->id); ?>" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered modal-lg">
                     <div class="modal-content">
 
                         <div class="modal-header show-modal-header">
                             <div>
-                                <h5 class="modal-title fw-bold" id="showModalLabel{{ $book->id }}">
-                                    📖 {{ $book->title }}
+                                <h5 class="modal-title fw-bold" id="showModalLabel<?php echo e($book->id); ?>">
+                                    📖 <?php echo e($book->title); ?>
+
                                 </h5>
-                                <small class="text-white-50">by {{ $book->author }}</small>
+                                <small class="text-white-50">by <?php echo e($book->author); ?></small>
                             </div>
                             <button type="button" class="btn-close btn-close-white"
                                     data-bs-dismiss="modal" aria-label="Close"></button>
@@ -169,61 +142,63 @@
 
                         <div class="modal-body p-4">
 
-                            {{-- ── Availability summary ─────────────────── --}}
+                            
                             <div class="show-modal-availability
-                                        {{ $isAvailable ? 'show-modal-availability--ok' : 'show-modal-availability--full' }}">
-                                @if($isAvailable)
-                                    ✅ <strong>{{ $availableCopies }}</strong> of
-                                    <strong>{{ $totalCopies }}</strong> copies available
-                                @else
-                                    ❌ All <strong>{{ $totalCopies }}</strong> copies currently borrowed
-                                @endif
+                                        <?php echo e($isAvailable ? 'show-modal-availability--ok' : 'show-modal-availability--full'); ?>">
+                                <?php if($isAvailable): ?>
+                                    ✅ <strong><?php echo e($availableCopies); ?></strong> of
+                                    <strong><?php echo e($totalCopies); ?></strong> copies available
+                                <?php else: ?>
+                                    ❌ All <strong><?php echo e($totalCopies); ?></strong> copies currently borrowed
+                                <?php endif; ?>
                             </div>
 
-                            {{-- ── Copy list ────────────────────────────── --}}
-                            @if($book->bookCopies->count() > 0)
+                            
+                            <?php if($book->bookCopies->count() > 0): ?>
                                 <h6 class="fw-bold mb-2 mt-3">Book Copies</h6>
                                 <div class="show-modal-copies-grid">
-                                    @foreach($book->bookCopies as $copy)
+                                    <?php $__currentLoopData = $book->bookCopies; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $copy): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                         <div class="show-modal-copy
-                                                    {{ $copy->status === 'available'
+                                                    <?php echo e($copy->status === 'available'
                                                         ? 'show-modal-copy--available'
                                                         : ($copy->status === 'damaged'
                                                             ? 'show-modal-copy--damaged'
-                                                            : 'show-modal-copy--borrowed') }}">
+                                                            : 'show-modal-copy--borrowed')); ?>">
                                             <div class="show-modal-copy__number">
-                                                {{ $copy->copy_number ?? 'Copy' }}
+                                                <?php echo e($copy->copy_number ?? 'Copy'); ?>
+
                                             </div>
                                             <div class="show-modal-copy__barcode">
-                                                {{ \App\Models\BookCopy::normalizeBarcode($copy->barcode) }}
+                                                <?php echo e(\App\Models\BookCopy::normalizeBarcode($copy->barcode)); ?>
+
                                             </div>
                                             <div class="show-modal-copy__status">
-                                                @if($copy->status === 'available')
+                                                <?php if($copy->status === 'available'): ?>
                                                     ✅ Available
-                                                @elseif($copy->status === 'damaged')
+                                                <?php elseif($copy->status === 'damaged'): ?>
                                                     🔧 Damaged
-                                                @else
+                                                <?php else: ?>
                                                     📤 Borrowed
-                                                @endif
+                                                <?php endif; ?>
                                             </div>
                                         </div>
-                                    @endforeach
+                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 </div>
-                            @endif
+                            <?php endif; ?>
 
-                            {{-- ── Borrow form (shown only when copies available) ── --}}
-                            @if($isAvailable)
+                            
+                            <?php if($isAvailable): ?>
                                 <div class="show-modal-borrow-section mt-4">
                                     <h6 class="fw-bold mb-3">📝 Borrow This Book</h6>
                                     <form class="book-borrow-form"
-                                          action="{{ route('borrow.store') }}"
-                                          data-book-id="{{ $book->id }}">
-                                        @csrf
-                                        <input type="hidden" name="book_id" value="{{ $book->id }}">
+                                          action="<?php echo e(route('borrow.store')); ?>"
+                                          data-book-id="<?php echo e($book->id); ?>">
+                                        <?php echo csrf_field(); ?>
+                                        <input type="hidden" name="book_id" value="<?php echo e($book->id); ?>">
                                         <div class="row g-2">
                                             <div class="col-md-12">
                                                 <input type="text"
-                                                       id="modal_student_name_{{ $book->id }}"
+                                                       id="modal_student_name_<?php echo e($book->id); ?>"
                                                        name="student_name"
                                                        class="form-control"
                                                        placeholder="Student Name"
@@ -232,7 +207,7 @@
                                             </div>
                                             <div class="col-md-6">
                                                 <input type="text"
-                                                       id="modal_course_{{ $book->id }}"
+                                                       id="modal_course_<?php echo e($book->id); ?>"
                                                        name="course"
                                                        class="form-control"
                                                        placeholder="Course"
@@ -241,7 +216,7 @@
                                             </div>
                                             <div class="col-md-6">
                                                 <input type="text"
-                                                       id="modal_section_{{ $book->id }}"
+                                                       id="modal_section_<?php echo e($book->id); ?>"
                                                        name="section"
                                                        class="form-control"
                                                        placeholder="Section"
@@ -252,11 +227,11 @@
                                         <div class="alert borrow-form-alert d-none mt-2" role="alert"></div>
                                     </form>
                                 </div>
-                            @endif
+                            <?php endif; ?>
 
-                            {{-- ── Borrowing history (loaded via AJAX) ──── --}}
+                            
                             <div class="show-modal-history-section mt-4"
-                                 id="historySection{{ $book->id }}">
+                                 id="historySection<?php echo e($book->id); ?>">
                                 <h6 class="fw-bold mb-2">📋 Borrowing History</h6>
                                 <div class="show-modal-history-loading text-muted text-center py-2">
                                     <small>Loading history…</small>
@@ -264,43 +239,43 @@
                                 <div class="show-modal-history-content d-none"></div>
                             </div>
 
-                        </div>{{-- /modal-body --}}
+                        </div>
 
                         <div class="modal-footer justify-content-between">
                             <div class="d-flex gap-2">
-                                {{-- Barcode sticker link --}}
-                                @if($book->bookCopies->count() > 0)
-                                    <a href="{{ route('books.barcode.sticker', $book->id) }}"
+                                
+                                <?php if($book->bookCopies->count() > 0): ?>
+                                    <a href="<?php echo e(route('books.barcode.sticker', $book->id)); ?>"
                                        class="btn btn-sm btn-outline-secondary"
                                        target="_blank">
                                         🏷️ Print Stickers
                                     </a>
-                                @endif
+                                <?php endif; ?>
 
-                                {{-- Edit link --}}
-                                <a href="{{ route('books.edit', $book->id) }}"
+                                
+                                <a href="<?php echo e(route('books.edit', $book->id)); ?>"
                                    class="btn btn-sm btn-outline-primary">
                                     ✏️ Edit
                                 </a>
                             </div>
 
                             <div class="d-flex gap-2 align-items-center">
-                                {{-- Borrow submit (visible when available) --}}
-                                @if($isAvailable)
+                                
+                                <?php if($isAvailable): ?>
                                     <button type="button"
                                             class="btn btn-success borrow-submit-btn"
-                                            data-book-id="{{ $book->id }}">
+                                            data-book-id="<?php echo e($book->id); ?>">
                                         📥 Confirm Borrow
                                     </button>
-                                @endif
+                                <?php endif; ?>
 
-                                {{-- Delete button --}}
-                                <form action="{{ route('books.destroy', $book->id) }}"
+                                
+                                <form action="<?php echo e(route('books.destroy', $book->id)); ?>"
                                       method="POST"
                                       class="book-delete-form"
-                                      onsubmit="return confirm('Delete \'{{ addslashes($book->title) }}\'? This cannot be undone.')">
-                                    @csrf
-                                    @method('DELETE')
+                                      onsubmit="return confirm('Delete \'<?php echo e(addslashes($book->title)); ?>\'? This cannot be undone.')">
+                                    <?php echo csrf_field(); ?>
+                                    <?php echo method_field('DELETE'); ?>
                                     <button type="submit" class="btn btn-sm btn-outline-danger">
                                         🗑️ Delete
                                     </button>
@@ -314,26 +289,24 @@
                     </div>
                 </div>
             </div>
-            {{-- /showModal{{ $book->id }} --}}
+            
 
-        @endforeach
-    </div>{{-- /bookGrid --}}
+        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+    </div>
 
-@else
+<?php else: ?>
     <div class="no-records">
         <div class="no-records-icon">📚</div>
         <h3>No Books Yet</h3>
         <p>Add your first book using the form above.</p>
     </div>
-@endif
+<?php endif; ?>
 
-@endsection
+<?php $__env->stopSection(); ?>
 
 
-{{-- ═══════════════════════════════════════════════════════════════════════
-     Page-specific styles
-     ═══════════════════════════════════════════════════════════════════════ --}}
-@push('styles')
+
+<?php $__env->startPush('styles'); ?>
 <style>
 /* ── Scanner hint bar ─────────────────────────────────────────────────── */
 .scanner-hint-bar {
@@ -508,13 +481,11 @@
     .show-modal-copies-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
 }
 </style>
-@endpush
+<?php $__env->stopPush(); ?>
 
 
-{{-- ═══════════════════════════════════════════════════════════════════════
-     Page-specific JavaScript
-     ═══════════════════════════════════════════════════════════════════════ --}}
-@push('scripts')
+
+<?php $__env->startPush('scripts'); ?>
 <script>
 /**
  * books/index.blade.php — inline JS
@@ -833,7 +804,7 @@
         section.className = 'show-modal-borrow-section mt-4';
         section.innerHTML =
             '<h6 class="fw-bold mb-3">📝 Borrow This Book</h6>' +
-            '<form class="book-borrow-form" action="{{ route('borrow.store') }}" data-book-id="' + bookId + '">' +
+            '<form class="book-borrow-form" action="<?php echo e(route('borrow.store')); ?>" data-book-id="' + bookId + '">' +
                 '<input type="hidden" name="_token" value="' + document.querySelector("meta[name=csrf-token]").content + '">' +
                 '<input type="hidden" name="book_id" value="' + bookId + '">' +
                 '<div class="row g-2">' +
@@ -908,7 +879,7 @@
 
         if (submitBtn) submitBtn.disabled = true;
 
-        fetch(form.action || '{{ route('borrow.store') }}', {
+        fetch(form.action || '<?php echo e(route('borrow.store')); ?>', {
             method:  'POST',
             body:    new FormData(form),
             headers: {
@@ -1061,4 +1032,5 @@
 
 }());
 </script>
-@endpush
+<?php $__env->stopPush(); ?>
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\Ryoji\PROJECT-NAME\resources\views/books/index.blade.php ENDPATH**/ ?>
