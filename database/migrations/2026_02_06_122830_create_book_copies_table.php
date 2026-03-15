@@ -1,0 +1,36 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+       Schema::create('book_copies', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('book_id')->constrained()->cascadeOnDelete();
+    $table->string('barcode')->unique();
+    $table->string('copy_number'); // Copy 1 of 5
+    $table->enum('status', ['available', 'borrowed', 'damaged', 'lost'])
+          ->default('available');
+    $table->text('notes')->nullable();
+    $table->timestamps();
+
+    $table->index(['book_id', 'status']);
+});
+
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('book_copies');
+    }
+};
