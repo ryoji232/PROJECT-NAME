@@ -255,27 +255,38 @@ Route::post('/borrowing/{borrowing}/return', function($borrowing) {
 
 // Simple return route for barcode stickers
 Route::post('/books/{id}/quick-return', function($id) {
-    $book = \App\Models\Book::find($id);
-    
+    $book = \App\Models\Book::with('bookCopies')->find($id);
+
     if (!$book) {
         return back()->with('error', 'Book not found.');
     }
-    
-    // Find the most recent active borrowing for this book
-    $borrowing = \App\Models\Borrowing::where('book_id', $id)
+
+    // Find the most recent active borrowing for this book (eager-load the copy)
+    $borrowing = \App\Models\Borrowing::with('bookCopy')
+        ->where('book_id', $id)
         ->whereNull('returned_at')
         ->latest()
         ->first();
-    
-    if ($borrowing) {
-        // Process return
-        $borrowing->update(['returned_at' => now()]);
-        $borrowing->book->increment('copies');
-        
-        return back()->with('success', 'Book returned successfully!');
+
+    if (! $borrowing) {
+        return back()->with('error', 'No active borrowing found for this book.');
     }
-    
-    return back()->with('error', 'No active borrowing found for this book.');
+
+    // Run everything inside a transaction — mirrors BorrowingController::returnBook()
+    \Illuminate\Support\Facades\DB::transaction(function () use ($borrowing) {
+        // 1. Mark the borrowing as returned
+        $borrowing->update(['returned_at' => now()]);
+
+        // 2. Flip the specific BookCopy back to available (if linked)
+        if ($borrowing->bookCopy) {
+            $borrowing->bookCopy->update(['status' => 'available']);
+        }
+
+        // 3. Increment available_copies on the book (not total copies)
+        $borrowing->book->increment('available_copies');
+    });
+
+    return back()->with('success', 'Book returned successfully!');
 })->name('books.quick-return');
 
 Route::get('/books/{book}/copies', [BookCopyController::class, 'index']);

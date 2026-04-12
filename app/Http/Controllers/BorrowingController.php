@@ -48,6 +48,16 @@ class BorrowingController extends Controller
             'overdue' => DB::table('borrowings')->whereNull('returned_at')->where('due_date', '<', now())->count(),
         ];
 
+        // ── AJAX: return only the table fragment for live filtering ──────────
+        // The JS in borrowings/index.blade.php sends X-Requested-With: XMLHttpRequest.
+        // We render the partial and return it as JSON so the blade can swap it
+        // into #borrowingsTableContainer without a full page reload.
+        if ($request->ajax()) {
+            return response()->json([
+                'table' => view('borrowings.partials.table', compact('borrowings'))->render(),
+            ]);
+        }
+
         return view('borrowings.index', compact('borrowings', 'stats'));
     }
 
@@ -68,8 +78,6 @@ class BorrowingController extends Controller
             $book = Book::findOrFail($request->book_id);
 
             // ── Step 1: Auto-repair missing book_copies rows ─────────────────
-            // Books seeded via DB::table()->insert() bypass the Eloquent boot
-            // hooks and never get BookCopy records. Create them now if missing.
             if (BookCopy::where('book_id', $book->id)->count() === 0) {
                 $totalCopies = max(1, (int) $book->copies);
                 for ($i = 1; $i <= $totalCopies; $i++) {
@@ -85,9 +93,6 @@ class BorrowingController extends Controller
             }
 
             // ── Step 2: Reconcile available_copies with actual DB state ──────
-            // The books.available_copies column can drift out of sync with the
-            // book_copies table (e.g. seeder sets random values, or a crash
-            // left the counter wrong). Recompute from the source of truth.
             $actualAvailable = BookCopy::where('book_id', $book->id)
                 ->where('status', 'available')
                 ->count();
@@ -111,7 +116,6 @@ class BorrowingController extends Controller
                 ->first();
 
             if (! $copy) {
-                // Extremely unlikely after step 3, but handle it gracefully.
                 return response()->json([
                     'success' => false,
                     'message' => 'Could not reserve a copy. Please try again.',
@@ -341,17 +345,17 @@ class BorrowingController extends Controller
                 ->map(function ($item) {
                     $book = Book::find($item->book_id);
                     return [
-                        'title'       => $book ? $book->title : 'Unknown Book',
+                        'title'        => $book ? $book->title : 'Unknown Book',
                         'borrow_count' => $item->borrow_count,
                     ];
                 });
 
             return response()->json([
-                'success'          => true,
-                'total_books'      => $totalBooks,
+                'success'            => true,
+                'total_books'        => $totalBooks,
                 'current_borrowings' => $currentBorrowings,
                 'recent_borrowings'  => $recentBorrowings,
-                'chart_data'       => [
+                'chart_data'         => [
                     'labels' => $mostBorrowedBooks->pluck('title')->toArray(),
                     'data'   => $mostBorrowedBooks->pluck('borrow_count')->toArray(),
                 ],
@@ -365,7 +369,6 @@ class BorrowingController extends Controller
 
     // =========================================================
     // NOTIFICATION DATA — Real-time bell panel
-    // Returns raw seconds so the JS ticker can count down live
     // =========================================================
     public function getNotificationsData()
     {
@@ -412,8 +415,8 @@ class BorrowingController extends Controller
                     'spendingTime'     => "{$spentDays}d {$spentHours}h {$spentMins}m",
                     'remainingTime'    => $remText,
                     'daysLeft'         => $remDays,
-                    'spentSeconds'     => $spent,       // raw — JS ticks from here
-                    'remainingSeconds' => $remaining,   // raw — JS ticks from here
+                    'spentSeconds'     => $spent,
+                    'remainingSeconds' => $remaining,
                     'status'           => $status,
                 ];
             }

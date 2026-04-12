@@ -67,6 +67,15 @@ class BookHistoryController extends Controller
                                                  ->count(),
         ];
 
+        // AJAX request — return only the table fragment so the blade can
+        // swap it in place without a full page reload.
+        if ($request->ajax()) {
+            return response()->json([
+                'table' => view('book-history.partials.table',
+                                compact('historyRecords'))->render(),
+            ]);
+        }
+
         return view('book-history.index', compact('historyRecords', 'historyStats'));
     }
 }

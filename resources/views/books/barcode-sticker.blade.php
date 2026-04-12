@@ -247,7 +247,7 @@
     </div>
 
   <!-- Return Confirmation Modal (For Borrowed Books) -->
-<div class="modal fade return-modal" id="returnModal" tabindex="-1" aria-labelledby="returnModalLabel" aria-hidden="true">
+<div class="modal fade return-modal" id="returnModal" tabindex="-1" aria-labelledby="returnModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
@@ -272,12 +272,20 @@
                         <strong>Please verify:</strong> Ensure the physical book is being returned before confirming.
                     </div>
 
-                    <!-- Simple POST form -->
-                    <form action="{{ route('books.quick-return', $book->id) }}" method="POST">
+                    {{-- Confirmation checkbox — must be checked before the button unlocks --}}
+                    <div class="form-check mb-3 mt-2 p-3 border rounded" style="background:#f8f9fa;">
+                        <input class="form-check-input" type="checkbox" id="quickReturnCheckbox">
+                        <label class="form-check-label fw-semibold" for="quickReturnCheckbox">
+                            I confirm the physical book has been returned
+                        </label>
+                    </div>
+
+                    <!-- Simple POST form — submit button starts disabled -->
+                    <form id="quickReturnForm" action="{{ route('books.quick-return', $book->id) }}" method="POST">
                         @csrf
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-success btn-lg">
-                                Confirm Book Return
+                            <button type="submit" id="quickReturnBtn" class="btn btn-success btn-lg" disabled>
+                                ✅ Confirm Book Return
                             </button>
                         </div>
                     </form>
@@ -438,6 +446,29 @@ window.handleBarcodeScan = handleBarcodeScan;
             window.handleBarcodeScan(event.detail.bookId);
         }
     });
+
+    // ── Confirmation checkbox wiring ──────────────────────────────────────
+    // The confirm-return button stays disabled until the checkbox is ticked.
+    // The checkbox and button are reset every time the modal is opened so a
+    // librarian who cancels and re-opens cannot accidentally skip the guard.
+    (function () {
+        var checkbox  = document.getElementById('quickReturnCheckbox');
+        var submitBtn = document.getElementById('quickReturnBtn');
+        var modal     = document.getElementById('returnModal');
+
+        if (!checkbox || !submitBtn || !modal) return;
+
+        // Toggle the button when the checkbox changes
+        checkbox.addEventListener('change', function () {
+            submitBtn.disabled = !this.checked;
+        });
+
+        // Reset state every time the modal is shown (handles re-opens)
+        modal.addEventListener('show.bs.modal', function () {
+            checkbox.checked   = false;
+            submitBtn.disabled = true;
+        });
+    }());
     </script>
 </body>
 </html>

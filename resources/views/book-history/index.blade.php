@@ -38,124 +38,160 @@
 
 {{-- Filters --}}
 <div class="filter-card">
-    <form method="GET" action="{{ route('book-history.index') }}" class="row g-2 align-items-end">
-        <div class="col-md-5">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-7">
             <label class="form-label fw-semibold">Search</label>
-            <input type="text" name="search" class="form-control"
-                   placeholder="Student name, course, section, book title or author…"
-                   value="{{ request('search') }}">
+            <div style="position:relative;">
+                <input type="text" id="historySearch" class="form-control"
+                       placeholder="Student name, course, section, book title or author…"
+                       value="{{ request('search') }}"
+                       autocomplete="off">
+                <div id="searchSpinner" style="display:none;position:absolute;right:.75rem;top:50%;transform:translateY(-50%);">
+                    <div class="spinner-border spinner-border-sm text-secondary" role="status">
+                        <span class="visually-hidden">Loading…</span>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-5">
             <label class="form-label fw-semibold">Status</label>
-            <select name="status" class="form-control">
+            <select id="historyStatus" class="form-control">
                 <option value="">— All Records —</option>
                 <option value="borrowed"  {{ request('status') === 'borrowed'  ? 'selected' : '' }}>Currently Borrowed</option>
                 <option value="returned"  {{ request('status') === 'returned'  ? 'selected' : '' }}>Returned</option>
                 <option value="overdue"   {{ request('status') === 'overdue'   ? 'selected' : '' }}>Overdue</option>
             </select>
         </div>
-        <div class="col-md-2">
-            <button type="submit" class="btn btn-success w-100">Filter</button>
-        </div>
-        <div class="col-md-2">
-            <a href="{{ route('book-history.index') }}" class="btn btn-outline-secondary w-100">Clear</a>
-        </div>
-    </form>
+    </div>
 </div>
 
-{{-- Table --}}
-<div class="borrowings-table-container">
-    @if($historyRecords->count() > 0)
-        <div class="table-responsive">
-            <table class="borrowings-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Book Title</th>
-                        <th>Author</th>
-                        <th>Borrower</th>
-                        <th>Course & Section</th>
-                        <th>Borrowed Date</th>
-                        <th>Due Date</th>
-                        <th>Returned Date</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($historyRecords as $record)
-                        @php
-                            $isReturned = !is_null($record->returned_at);
-                            $isOverdue  = !$isReturned && $record->due_date && now()->gt($record->due_date);
-                        @endphp
-                        <tr class="{{ $isOverdue ? 'row-overdue' : '' }}">
-                            <td class="text-muted" style="font-size:.82rem;">
-                                {{ ($historyRecords->currentPage() - 1) * $historyRecords->perPage() + $loop->iteration }}
-                            </td>
-                            <td><strong>{{ $record->book->title ?? 'N/A' }}</strong></td>
-                            <td>{{ $record->book->author ?? 'N/A' }}</td>
-                            <td>{{ $record->student_name }}</td>
-                            <td>{{ $record->course }} - {{ $record->section }}</td>
-                            <td>{{ $record->borrowed_at?->format('M d, Y h:i A') ?? $record->created_at?->format('M d, Y h:i A') ?? 'N/A' }}</td>
-                            <td>
-                                @if($record->due_date)
-                                    <span @if($isOverdue && !$isReturned) style="color:#721c24;font-weight:600;" @endif>
-                                        {{ $record->due_date->format('M d, Y') }}
-                                    </span>
-                                @else
-                                    N/A
-                                @endif
-                            </td>
-                            <td>
-                                @if($isReturned)
-                                    <span style="color:#198754;">
-                                        {{ $record->returned_at->format('M d, Y h:i A') }}
-                                    </span>
-                                @else
-                                    <span class="text-muted">—</span>
-                                @endif
-                            </td>
-                            <td>
-                                @if($isReturned)
-                                    <span class="status-badge" style="background:#d4edda;color:#155724;border:1px solid #c3e6cb;">
-                                         Returned
-                                    </span>
-                                @elseif($isOverdue)
-                                    <span class="status-badge status-overdue">⚠ Overdue</span>
-                                @else
-                                    <span class="status-badge status-borrowed">Borrowed</span>
-                                @endif
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-
-        {{-- Pagination --}}
-        @if($historyRecords->hasPages())
-            <div class="d-flex justify-content-between align-items-center px-3 py-3 border-top">
-                <div class="text-muted" style="font-size:0.875rem;">
-                    Showing
-                    <strong>{{ $historyRecords->firstItem() }}</strong>–<strong>{{ $historyRecords->lastItem() }}</strong>
-                    of <strong>{{ $historyRecords->total() }}</strong> records
-                </div>
-                <nav aria-label="Book history pagination">
-                    {{ $historyRecords->links('pagination::bootstrap-5') }}
-                </nav>
-            </div>
-        @else
-            <div class="px-3 py-2 border-top text-muted" style="font-size:0.875rem;">
-                Showing all <strong>{{ $historyRecords->total() }}</strong> records
-            </div>
-        @endif
-
-    @else
-        <div class="no-records">
-            <div class="no-records-icon">📭</div>
-            <h3>No Records Found</h3>
-            <p>No borrowing history matches your search or filter.</p>
-        </div>
-    @endif
+{{-- Table — AJAX swaps the innerHTML of this div --}}
+<div class="borrowings-table-container" id="historyTableContainer">
+    @include('book-history.partials.table')
 </div>
 
 @endsection
+
+@push('styles')
+<style>
+#historyTableContainer {
+    transition: opacity 0.18s ease;
+}
+#historyTableContainer.is-loading {
+    opacity: 0.35;
+    pointer-events: none;
+}
+</style>
+@endpush
+
+@push('scripts')
+<script>
+(function () {
+    'use strict';
+
+    var searchInput   = document.getElementById('historySearch');
+    var statusSelect  = document.getElementById('historyStatus');
+    var container     = document.getElementById('historyTableContainer');
+    var spinner       = document.getElementById('searchSpinner');
+    var debounceTimer = null;
+    var currentCtrl   = null;   // AbortController for the in-flight request
+
+    var baseUrl = "{{ route('book-history.index') }}";
+
+    // ── Core fetch function ───────────────────────────────────────────────
+    function fetchTable(extraParams) {
+        if (currentCtrl) currentCtrl.abort();
+        currentCtrl = new AbortController();
+
+        var params = new URLSearchParams();
+        var search = searchInput  ? searchInput.value.trim() : '';
+        var status = statusSelect ? statusSelect.value       : '';
+        if (search) params.set('search', search);
+        if (status) params.set('status', status);
+
+        // Allow pagination etc. to inject extra params (e.g. page number)
+        if (extraParams) {
+            extraParams.forEach(function (val, key) {
+                params.set(key, val);
+            });
+        }
+
+        var url = baseUrl + (params.toString() ? '?' + params.toString() : '');
+
+        // Update the address bar without reloading
+        window.history.replaceState(null, '', url);
+
+        // Visual feedback
+        if (container) container.classList.add('is-loading');
+        if (spinner)   spinner.style.display = '';
+
+        fetch(url, {
+            signal:  currentCtrl.signal,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept':           'application/json',
+                'X-CSRF-TOKEN':     document.querySelector('meta[name="csrf-token"]').content,
+            }
+        })
+        .then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        })
+        .then(function (data) {
+            if (container && data.table !== undefined) {
+                container.innerHTML = data.table;
+                attachPaginationHandlers();
+            }
+        })
+        .catch(function (err) {
+            if (err.name === 'AbortError') return;
+            console.error('[BookHistory] fetch error:', err);
+        })
+        .finally(function () {
+            if (container) container.classList.remove('is-loading');
+            if (spinner)   spinner.style.display = 'none';
+            currentCtrl = null;
+        });
+    }
+
+    // ── Input listeners ───────────────────────────────────────────────────
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(function () { fetchTable(); }, 400);
+        });
+    }
+
+    if (statusSelect) {
+        statusSelect.addEventListener('change', function () { fetchTable(); });
+    }
+
+    // ── Pagination — intercept link clicks after every swap ───────────────
+    function attachPaginationHandlers() {
+        if (!container) return;
+        container.querySelectorAll('[aria-label="Book history pagination"] a').forEach(function (link) {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+
+                var href   = this.getAttribute('href');
+                var parsed = new URL(href, window.location.origin);
+
+                // Sync inputs with whatever the paginator link carries
+                var pSearch = parsed.searchParams.get('search') || '';
+                var pStatus = parsed.searchParams.get('status') || '';
+                if (searchInput  && searchInput.value  !== pSearch) searchInput.value  = pSearch;
+                if (statusSelect && statusSelect.value !== pStatus) statusSelect.value = pStatus;
+
+                fetchTable(parsed.searchParams);
+
+                // Scroll smoothly back to the top of the table
+                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+    }
+
+    attachPaginationHandlers();
+
+}());
+</script>
+@endpush

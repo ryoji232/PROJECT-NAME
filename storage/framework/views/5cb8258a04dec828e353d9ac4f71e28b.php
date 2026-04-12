@@ -54,6 +54,26 @@
 </div>
 
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var modal    = document.getElementById('barcodeReturnModal');
+    var checkbox = document.getElementById('confirmReturnCheckbox');
+    var btn      = document.getElementById('confirmReturnBtn');
+
+    if (!modal || !checkbox || !btn) return;
+
+    checkbox.addEventListener('change', function () {
+        btn.disabled = !this.checked;
+    });
+
+    modal.addEventListener('show.bs.modal', function () {
+        checkbox.checked = false;
+        btn.disabled     = true;
+    });
+});
+</script>
+
+
 <div class="modal fade" id="borrowModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
