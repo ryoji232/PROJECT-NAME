@@ -29,6 +29,7 @@
 
 <div class="filter-card">
     <div class="row g-2 align-items-end">
+
         
         <div class="col-md-7">
             <label class="form-label fw-semibold">Search</label>
@@ -51,14 +52,11 @@
         <div class="col-md-5">
             <label class="form-label fw-semibold">Status</label>
             <select id="borrowingsStatus" class="form-control">
-                <option value="active"  <?php echo e(request('status', 'active') === 'active'  ? 'selected' : ''); ?>>— All Active —</option>
+                <option value="">— All Active —</option>
                 <option value="overdue" <?php echo e(request('status') === 'overdue' ? 'selected' : ''); ?>>Overdue Only</option>
             </select>
         </div>
     </div>
-
-    
-    <div id="borrowingsSearchMeta" class="mt-2" style="font-size:0.82rem; color:#6c757d; min-height:1.2rem;"></div>
 </div>
 
 
@@ -131,20 +129,19 @@ function openReturnModal(borrowingId) {
     var statusSelect  = document.getElementById('borrowingsStatus');
     var container     = document.getElementById('borrowingsTableContainer');
     var spinner       = document.getElementById('searchSpinner');
-    var metaEl        = document.getElementById('borrowingsSearchMeta');
     var debounceTimer = null;
     var currentCtrl   = null;   // AbortController for the in-flight request
 
     var baseUrl = "<?php echo e(route('borrowings.index')); ?>";
 
-    // ── Core fetch function — identical pattern to Book History ──────────
+    // ── Core fetch function — identical to Book History ───────────────────
     function fetchTable(extraParams) {
         if (currentCtrl) currentCtrl.abort();
         currentCtrl = new AbortController();
 
         var params = new URLSearchParams();
         var search = searchInput  ? searchInput.value.trim() : '';
-        var status = statusSelect ? statusSelect.value       : 'active';
+        var status = statusSelect ? statusSelect.value       : '';
 
         if (search) params.set('search', search);
         if (status) params.set('status', status);
@@ -168,6 +165,10 @@ function openReturnModal(borrowingId) {
         fetch(url, {
             signal:  currentCtrl.signal,
             headers: {
+                // These two headers are what make $request->ajax() return true
+                // in the controller, which triggers the JSON table-fragment response.
+                // The original code was missing 'Accept: application/json' causing
+                // the controller to fall through to the full-page view response.
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept':           'application/json',
                 'X-CSRF-TOKEN':     document.querySelector('meta[name="csrf-token"]').content,
@@ -182,25 +183,10 @@ function openReturnModal(borrowingId) {
                 container.innerHTML = data.table;
                 attachPaginationHandlers();
             }
-
-            // Update meta text
-            if (metaEl) {
-                var rows = container ? container.querySelectorAll('tbody tr').length : 0;
-                if (search) {
-                    metaEl.textContent = rows > 0
-                        ? rows + ' result(s) for "' + search + '"'
-                        : 'No results found for "' + search + '"';
-                } else {
-                    metaEl.textContent = '';
-                }
-            }
         })
         .catch(function (err) {
             if (err.name === 'AbortError') return;
             console.error('[Borrowings] fetch error:', err);
-            if (metaEl) {
-                metaEl.innerHTML = '<span style="color:#dc3545;">⚠️ Failed to load results — check your connection and try again.</span>';
-            }
         })
         .finally(function () {
             if (container) container.classList.remove('is-loading');
@@ -214,22 +200,6 @@ function openReturnModal(borrowingId) {
         searchInput.addEventListener('input', function () {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(function () { fetchTable(); }, 400);
-        });
-
-        // Enter triggers immediately
-        searchInput.addEventListener('keydown', function (e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                clearTimeout(debounceTimer);
-                fetchTable();
-            }
-            // Escape clears the search and reloads
-            if (e.key === 'Escape') {
-                searchInput.value = '';
-                clearTimeout(debounceTimer);
-                if (metaEl) metaEl.textContent = '';
-                fetchTable();
-            }
         });
     }
 
@@ -248,15 +218,13 @@ function openReturnModal(borrowingId) {
                 var href   = this.getAttribute('href');
                 var parsed = new URL(href, window.location.origin);
 
-                // Sync inputs with whatever the paginator link carries
                 var pSearch = parsed.searchParams.get('search') || '';
-                var pStatus = parsed.searchParams.get('status') || 'active';
+                var pStatus = parsed.searchParams.get('status') || '';
                 if (searchInput  && searchInput.value  !== pSearch) searchInput.value  = pSearch;
                 if (statusSelect && statusSelect.value !== pStatus) statusSelect.value = pStatus;
 
                 fetchTable(parsed.searchParams);
 
-                // Scroll smoothly back to the top of the table
                 container.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         });

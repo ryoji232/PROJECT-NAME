@@ -2,6 +2,7 @@
     resources/views/borrowings/partials/table.blade.php
     Rendered by BorrowingController::index() for AJAX requests.
     Contains only the table + pagination — no layout wrapper.
+    STATUS BADGES: Only "Borrowed" and "⚠ Overdue" — "On Time" removed.
 --}}
 @if($borrowings->count() > 0)
     <div class="table-responsive">
@@ -60,6 +61,13 @@
                             @endif
                         </td>
                         <td>
+                            {{--
+                                Only two statuses exist on this page:
+                                  • ⚠ Overdue  — unreturned AND past due_date
+                                  • Borrowed    — unreturned AND not yet past due_date
+                                "On Time" has been removed — it was redundant with "Borrowed"
+                                and inconsistent with the Book History page pattern.
+                            --}}
                             @if($isOverdue)
                                 <span class="status-badge status-overdue">⚠ Overdue</span>
                             @else

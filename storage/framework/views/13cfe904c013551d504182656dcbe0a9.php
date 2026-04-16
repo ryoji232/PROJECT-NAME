@@ -60,6 +60,7 @@
                             <?php endif; ?>
                         </td>
                         <td>
+                            
                             <?php if($isOverdue): ?>
                                 <span class="status-badge status-overdue">⚠ Overdue</span>
                             <?php else: ?>
