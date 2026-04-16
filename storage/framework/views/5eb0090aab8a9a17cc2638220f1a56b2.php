@@ -10,44 +10,60 @@ try {
         ->join('books', 'borrowings.book_id', '=', 'books.id')
         ->whereNull('borrowings.returned_at')
         ->orderBy('borrowings.borrowed_at', 'asc')
-        ->select('borrowings.student_name', 'borrowings.borrowed_at', 'borrowings.created_at', 'books.title as book_title')
+        ->select(
+            'borrowings.student_name',
+            'borrowings.borrowed_at',
+            'borrowings.created_at',
+            'borrowings.due_date',
+            'books.title as book_title'
+        )
         ->get();
 
     foreach ($__rows as $__row) {
-        $__borrowedAt     = Carbon::parse($__row->borrowed_at ?? $__row->created_at);
-        $__spent          = $__borrowedAt->diffInSeconds($__now);
-        $__remaining      = (14 * 86400) - $__spent;
+        $__borrowedAt = Carbon::parse($__row->borrowed_at ?? $__row->created_at);
+        $__spent      = (int) $__borrowedAt->diffInSeconds($__now);
 
-        $__spentDays      = floor($__spent / 86400);
-        $__spentHours     = floor(($__spent % 86400) / 3600);
-        $__spentMins      = floor(($__spent % 3600) / 60);
+        $__spentDays  = floor($__spent / 86400);
+        $__spentHours = floor(($__spent % 86400) / 3600);
+        $__spentMins  = floor(($__spent % 3600) / 60);
+
+        // Use the actual due_date column so all pages agree on what "overdue" means.
+        // Fall back to 14-day window only when due_date is missing (legacy rows).
+        if ($__row->due_date) {
+            $__dueAt      = Carbon::parse($__row->due_date)->endOfDay();
+            $__remaining  = (int) $__now->diffInSeconds($__dueAt, false); // negative when past due
+        } else {
+            $__remaining  = (14 * 86400) - $__spent;
+        }
 
         if ($__remaining > 0) {
             $__remDays    = floor($__remaining / 86400);
             $__remHours   = floor(($__remaining % 86400) / 3600);
             $__remMins    = floor(($__remaining % 3600) / 60);
             $__remText    = "{$__remDays}d {$__remHours}h {$__remMins}m";
+            $__status     = $__remDays > 7 ? 'green' : 'yellow';
         } else {
-            $__remDays    = -floor(abs($__remaining) / 86400);
+            $__remDays    = (int) floor($__remaining / 86400); // negative integer
             $__remText    = 'Overdue';
+            $__status     = 'red';
         }
 
         $notificationList[] = [
-            'borrower'      => $__row->student_name,
-            'book'          => $__row->book_title,
-            'spendingTime'  => "{$__spentDays}d {$__spentHours}h {$__spentMins}m",
-            'remainingTime' => $__remText,
-            'daysLeft'      => $__remDays,
-            'spentSeconds'  => (int) $__spent,
-            'remainingSeconds' => (int) $__remaining,
-            'status'        => $__remDays > 7 ? 'green' : ($__remDays >= 0 ? 'yellow' : 'red'),
+            'borrower'         => $__row->student_name,
+            'book'             => $__row->book_title,
+            'spendingTime'     => "{$__spentDays}d {$__spentHours}h {$__spentMins}m",
+            'remainingTime'    => $__remText,
+            'daysLeft'         => $__remDays,
+            'spentSeconds'     => $__spent,
+            'remainingSeconds' => $__remaining,
+            'status'           => $__status,
         ];
     }
 
     usort($notificationList, fn($a, $b) => $a['daysLeft'] <=> $b['daysLeft']);
     unset($__now, $__rows, $__row, $__borrowedAt, $__spent, $__remaining,
           $__spentDays, $__spentHours, $__spentMins, $__remDays, $__remHours,
-          $__remMins, $__remText);
+          $__remMins, $__remText, $__dueAt, $__status);
 } catch (\Exception $e) {
     $notificationList = [];
 }

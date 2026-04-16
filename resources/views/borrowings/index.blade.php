@@ -28,16 +28,11 @@
     </div>
 </div>
 
-{{-- Search & Filter ─────────────────────────────────────────────────────────
-     No submit/clear buttons.
-     • Typing in the search box debounces 400 ms then fires an AJAX fetch.
-     • Changing the filter dropdown fires immediately.
-     Both send X-Requested-With: XMLHttpRequest → BorrowingController::index()
-     detects this and returns {"table":"…"} instead of a full page response.
-──────────────────────────────────────────────────────────────────────────── --}}
+{{-- Search & Filter --}}
 <div class="filter-card">
     <div class="row g-2 align-items-end">
-        <div class="col-md-8">
+        {{-- Search input --}}
+        <div class="col-md-7">
             <label class="form-label fw-semibold">Search</label>
             <div style="position:relative;">
                 <input type="text"
@@ -46,25 +41,29 @@
                        placeholder="Student name, course, section, book title or author…"
                        value="{{ request('search') }}"
                        autocomplete="off">
-                <div id="borrowingsSpinner"
-                     style="display:none;position:absolute;right:.75rem;top:50%;transform:translateY(-50%);">
+                <div id="searchSpinner" style="display:none;position:absolute;right:.75rem;top:50%;transform:translateY(-50%);">
                     <div class="spinner-border spinner-border-sm text-secondary" role="status">
                         <span class="visually-hidden">Loading…</span>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <label class="form-label fw-semibold">Filter</label>
-            <select id="borrowingsFilter" class="form-control">
-                <option value="">— All Active —</option>
-                <option value="overdue" {{ request('filter') === 'overdue' ? 'selected' : '' }}>Overdue Only</option>
+
+        {{-- Filter dropdown — uses ?status= param, mirrors BookHistoryController --}}
+        <div class="col-md-5">
+            <label class="form-label fw-semibold">Status</label>
+            <select id="borrowingsStatus" class="form-control">
+                <option value="active"  {{ request('status', 'active') === 'active'  ? 'selected' : '' }}>— All Active —</option>
+                <option value="overdue" {{ request('status') === 'overdue' ? 'selected' : '' }}>Overdue Only</option>
             </select>
         </div>
     </div>
+
+    {{-- Active search indicator --}}
+    <div id="borrowingsSearchMeta" class="mt-2" style="font-size:0.82rem; color:#6c757d; min-height:1.2rem;"></div>
 </div>
 
-{{-- Table container — AJAX swaps the innerHTML of this div on every filter change --}}
+{{-- Table container — AJAX swaps the innerHTML of this div on every filter/search change --}}
 <div class="borrowings-table-container" id="borrowingsTableContainer">
     @include('borrowings.partials.table')
 </div>
@@ -84,11 +83,10 @@
 @endpush
 
 @push('scripts')
-{{-- ── Return modal ─────────────────────────────────────────────────────────
-     openReturnModal() is called by the ↩ Return button rendered inside the
-     partial table. It must be defined outside the IIFE so that newly
-     injected table HTML (after an AJAX swap) can still reach it.
-──────────────────────────────────────────────────────────────────────────── --}}
+{{-- ── Return modal ────────────────────────────────────────────────────────────
+     openReturnModal() must be global so the ↩ Return button inside the
+     AJAX-swapped table HTML can still call it after every container replace.
+────────────────────────────────────────────────────────────────────────────── --}}
 <script>
 function openReturnModal(borrowingId) {
     fetch('/borrowings/' + borrowingId + '/data', {
@@ -129,42 +127,42 @@ function openReturnModal(borrowingId) {
 }
 </script>
 
-{{-- ── Live filter engine ───────────────────────────────────────────────────
-     Mirrors the pattern used by BookHistoryController / book-history/index.
-     Key points:
-       1. Every fetch sends X-Requested-With so the controller returns JSON.
-       2. The AbortController cancels any in-flight request before starting
-          a new one — prevents stale responses landing out of order.
-       3. After every swap, attachPaginationHandlers() re-wires pagination
-          links so they also trigger AJAX rather than full page loads.
-──────────────────────────────────────────────────────────────────────────── --}}
+{{-- ── Search & Filter engine ─────────────────────────────────────────────────
+     Mirrors BookHistoryController's index.blade.php pattern exactly:
+     • Uses ?status= (not ?filter=) — same key the controller reads
+     • Empty status value  → no scope applied (all records)
+     • 'active'            → whereNull('returned_at')
+     • 'overdue'           → whereNull + overdue
+     • Debounced live search (400 ms), same as Book History page
+     • AbortController cancels in-flight requests on rapid input
+────────────────────────────────────────────────────────────────────────────── --}}
 <script>
 (function () {
     'use strict';
 
-    var searchInput  = document.getElementById('borrowingsSearch');
-    var filterSelect = document.getElementById('borrowingsFilter');
-    var container    = document.getElementById('borrowingsTableContainer');
-    var spinner      = document.getElementById('borrowingsSpinner');
+    var searchInput   = document.getElementById('borrowingsSearch');
+    var statusSelect  = document.getElementById('borrowingsStatus');
+    var container     = document.getElementById('borrowingsTableContainer');
+    var spinner       = document.getElementById('searchSpinner');
+    var metaEl        = document.getElementById('borrowingsSearchMeta');
     var debounceTimer = null;
-    var currentCtrl   = null;
+    var currentCtrl   = null;   // AbortController for the in-flight request
 
-    var baseUrl = '{{ route('borrowings.index') }}';
+    var baseUrl = "{{ route('borrowings.index') }}";
 
-    // ── Core fetch ────────────────────────────────────────────────────────
+    // ── Core fetch function — identical pattern to Book History ──────────
     function fetchTable(extraParams) {
-        // Cancel the previous in-flight request (if any)
         if (currentCtrl) currentCtrl.abort();
         currentCtrl = new AbortController();
 
-        // Build query string from current input values
         var params = new URLSearchParams();
         var search = searchInput  ? searchInput.value.trim() : '';
-        var filter = filterSelect ? filterSelect.value       : '';
-        if (search) params.set('search', search);
-        if (filter) params.set('filter', filter);
+        var status = statusSelect ? statusSelect.value       : 'active';
 
-        // Pagination links pass their own params (page number, etc.)
+        if (search) params.set('search', search);
+        if (status) params.set('status', status);
+
+        // Allow pagination links to inject extra params (e.g. page number)
         if (extraParams) {
             extraParams.forEach(function (val, key) {
                 params.set(key, val);
@@ -173,7 +171,7 @@ function openReturnModal(borrowingId) {
 
         var url = baseUrl + (params.toString() ? '?' + params.toString() : '');
 
-        // Keep the address bar in sync so a browser refresh restores filters
+        // Sync the address bar so a browser refresh restores the exact view
         window.history.replaceState(null, '', url);
 
         // Visual feedback
@@ -181,9 +179,9 @@ function openReturnModal(borrowingId) {
         if (spinner)   spinner.style.display = '';
 
         fetch(url, {
-            signal: currentCtrl.signal,
+            signal:  currentCtrl.signal,
             headers: {
-                'X-Requested-With': 'XMLHttpRequest',   // ← triggers AJAX branch in controller
+                'X-Requested-With': 'XMLHttpRequest',
                 'Accept':           'application/json',
                 'X-CSRF-TOKEN':     document.querySelector('meta[name="csrf-token"]').content,
             }
@@ -197,10 +195,25 @@ function openReturnModal(borrowingId) {
                 container.innerHTML = data.table;
                 attachPaginationHandlers();
             }
+
+            // Update meta text
+            if (metaEl) {
+                var rows = container ? container.querySelectorAll('tbody tr').length : 0;
+                if (search) {
+                    metaEl.textContent = rows > 0
+                        ? rows + ' result(s) for "' + search + '"'
+                        : 'No results found for "' + search + '"';
+                } else {
+                    metaEl.textContent = '';
+                }
+            }
         })
         .catch(function (err) {
-            if (err.name === 'AbortError') return;  // cancelled intentionally — ignore
+            if (err.name === 'AbortError') return;
             console.error('[Borrowings] fetch error:', err);
+            if (metaEl) {
+                metaEl.innerHTML = '<span style="color:#dc3545;">⚠️ Failed to load results — check your connection and try again.</span>';
+            }
         })
         .finally(function () {
             if (container) container.classList.remove('is-loading');
@@ -209,24 +222,36 @@ function openReturnModal(borrowingId) {
         });
     }
 
-    // ── Input listeners ───────────────────────────────────────────────────
-
-    // Debounce typing: wait 400 ms after the last keystroke before fetching
+    // ── Input listeners — identical to Book History ───────────────────────
     if (searchInput) {
         searchInput.addEventListener('input', function () {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(function () { fetchTable(); }, 400);
         });
+
+        // Enter triggers immediately
+        searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(debounceTimer);
+                fetchTable();
+            }
+            // Escape clears the search and reloads
+            if (e.key === 'Escape') {
+                searchInput.value = '';
+                clearTimeout(debounceTimer);
+                if (metaEl) metaEl.textContent = '';
+                fetchTable();
+            }
+        });
     }
 
-    // Filter dropdown fires immediately on change (no debounce needed)
-    if (filterSelect) {
-        filterSelect.addEventListener('change', function () { fetchTable(); });
+    // Status dropdown — fires immediately on change, same as Book History
+    if (statusSelect) {
+        statusSelect.addEventListener('change', function () { fetchTable(); });
     }
 
-    // ── Pagination handler ────────────────────────────────────────────────
-    // Must be called after every container swap because the old links are
-    // replaced with new DOM nodes that have no listeners yet.
+    // ── Pagination — intercept link clicks after every container swap ─────
     function attachPaginationHandlers() {
         if (!container) return;
         container.querySelectorAll('[aria-label="Borrowings pagination"] a').forEach(function (link) {
@@ -236,21 +261,20 @@ function openReturnModal(borrowingId) {
                 var href   = this.getAttribute('href');
                 var parsed = new URL(href, window.location.origin);
 
-                // Sync the filter inputs with whatever the paginator link carries
+                // Sync inputs with whatever the paginator link carries
                 var pSearch = parsed.searchParams.get('search') || '';
-                var pFilter = parsed.searchParams.get('filter') || '';
+                var pStatus = parsed.searchParams.get('status') || 'active';
                 if (searchInput  && searchInput.value  !== pSearch) searchInput.value  = pSearch;
-                if (filterSelect && filterSelect.value !== pFilter) filterSelect.value = pFilter;
+                if (statusSelect && statusSelect.value !== pStatus) statusSelect.value = pStatus;
 
                 fetchTable(parsed.searchParams);
 
-                // Scroll the table back into view smoothly
+                // Scroll smoothly back to the top of the table
                 container.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         });
     }
 
-    // Wire pagination on initial page load
     attachPaginationHandlers();
 
 }());

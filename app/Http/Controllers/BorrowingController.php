@@ -12,46 +12,53 @@ class BorrowingController extends Controller
 {
     // =========================================================
     // BORROWINGS INDEX — Action page (return button lives here)
-    // Only shows currently active/unreturned borrowings by default
+    // Default: shows only active/unreturned borrowings.
+    // Uses ?status= param (same key as BookHistoryController)
+    // so the JS filter engine works identically on both pages.
     // =========================================================
     public function index(Request $request)
     {
-        // Default: only show currently borrowed (unreturned) books
-        // This is the action page — librarians use this to process returns
-        $query = Borrowing::with(['book', 'bookCopy'])->orderBy('created_at', 'desc')
-                          ->whereNull('returned_at');
+        $query = Borrowing::with(['book', 'bookCopy'])->orderBy('created_at', 'desc');
 
-        // Optional search
+        // ── Status filter — mirrors BookHistoryController exactly ────────
+        // No default applied when param is absent or empty so "All Active"
+        // option in the dropdown truly means no WHERE clause is added.
+        // The blade pre-selects 'active' in the <select> so the page still
+        // opens showing active-only borrowings on first load (server-side).
+        if ($request->filled('status')) {
+            match ($request->status) {
+                'active'  => $query->whereNull('returned_at'),
+                'overdue' => $query->whereNull('returned_at')->where('due_date', '<', now()),
+                default   => null,
+            };
+        } else {
+            // No ?status= param supplied (initial page load) → default to active
+            $query->whereNull('returned_at');
+        }
+
+        // ── Optional search ───────────────────────────────────────────────
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('student_name', 'like', "%{$search}%")
-                  ->orWhere('course', 'like', "%{$search}%")
-                  ->orWhere('section', 'like', "%{$search}%")
+                  ->orWhere('course',       'like', "%{$search}%")
+                  ->orWhere('section',      'like', "%{$search}%")
                   ->orWhereHas('book', function ($bq) use ($search) {
-                      $bq->where('title', 'like', "%{$search}%")
+                      $bq->where('title',  'like', "%{$search}%")
                          ->orWhere('author', 'like', "%{$search}%");
                   });
             });
         }
 
-        // Optional overdue filter on top of active-only
-        if ($request->filled('filter') && $request->filter === 'overdue') {
-            $query->where('due_date', '<', now());
-        }
-
         $borrowings = $query->paginate(20)->withQueryString();
 
-        // Stats — raw DB, independent of any filter
+        // ── Stats — always computed from raw DB, never distorted by filters
         $stats = [
             'active'  => DB::table('borrowings')->whereNull('returned_at')->count(),
             'overdue' => DB::table('borrowings')->whereNull('returned_at')->where('due_date', '<', now())->count(),
         ];
 
-        // ── AJAX: return only the table fragment for live filtering ──────────
-        // The JS in borrowings/index.blade.php sends X-Requested-With: XMLHttpRequest.
-        // We render the partial and return it as JSON so the blade can swap it
-        // into #borrowingsTableContainer without a full page reload.
+        // ── AJAX: return only the table fragment ─────────────────────────
         if ($request->ajax()) {
             return response()->json([
                 'table' => view('borrowings.partials.table', compact('borrowings'))->render(),
@@ -382,6 +389,7 @@ class BorrowingController extends Controller
                     'borrowings.student_name',
                     'borrowings.borrowed_at',
                     'borrowings.created_at',
+                    'borrowings.due_date',
                     'books.title as book_title'
                 )
                 ->get();
@@ -391,11 +399,20 @@ class BorrowingController extends Controller
             foreach ($rows as $row) {
                 $borrowedAt = \Carbon\Carbon::parse($row->borrowed_at ?? $row->created_at);
                 $spent      = (int) $borrowedAt->diffInSeconds($now);
-                $remaining  = (14 * 86400) - $spent;
 
                 $spentDays  = floor($spent / 86400);
                 $spentHours = floor(($spent % 86400) / 3600);
                 $spentMins  = floor(($spent % 3600) / 60);
+
+                // Use the actual due_date column so the notification bell agrees
+                // with the Book History page and the Dashboard penalty list.
+                // Fall back to a 14-day window only for legacy rows without due_date.
+                if ($row->due_date) {
+                    $dueAt     = \Carbon\Carbon::parse($row->due_date)->endOfDay();
+                    $remaining = (int) $now->diffInSeconds($dueAt, false); // negative when overdue
+                } else {
+                    $remaining = (14 * 86400) - $spent;
+                }
 
                 if ($remaining > 0) {
                     $remDays  = floor($remaining / 86400);
@@ -404,7 +421,7 @@ class BorrowingController extends Controller
                     $remText  = "{$remDays}d {$remHours}h {$remMins}m";
                     $status   = $remDays > 7 ? 'green' : 'yellow';
                 } else {
-                    $remDays  = (int) -floor(abs($remaining) / 86400);
+                    $remDays  = (int) floor($remaining / 86400); // negative integer
                     $remText  = 'Overdue';
                     $status   = 'red';
                 }

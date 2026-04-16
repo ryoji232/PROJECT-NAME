@@ -29,7 +29,8 @@
 
 <div class="filter-card">
     <div class="row g-2 align-items-end">
-        <div class="col-md-8">
+        
+        <div class="col-md-7">
             <label class="form-label fw-semibold">Search</label>
             <div style="position:relative;">
                 <input type="text"
@@ -38,22 +39,26 @@
                        placeholder="Student name, course, section, book title or author…"
                        value="<?php echo e(request('search')); ?>"
                        autocomplete="off">
-                <div id="borrowingsSpinner"
-                     style="display:none;position:absolute;right:.75rem;top:50%;transform:translateY(-50%);">
+                <div id="searchSpinner" style="display:none;position:absolute;right:.75rem;top:50%;transform:translateY(-50%);">
                     <div class="spinner-border spinner-border-sm text-secondary" role="status">
                         <span class="visually-hidden">Loading…</span>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
-            <label class="form-label fw-semibold">Filter</label>
-            <select id="borrowingsFilter" class="form-control">
-                <option value="">— All Active —</option>
-                <option value="overdue" <?php echo e(request('filter') === 'overdue' ? 'selected' : ''); ?>>Overdue Only</option>
+
+        
+        <div class="col-md-5">
+            <label class="form-label fw-semibold">Status</label>
+            <select id="borrowingsStatus" class="form-control">
+                <option value="active"  <?php echo e(request('status', 'active') === 'active'  ? 'selected' : ''); ?>>— All Active —</option>
+                <option value="overdue" <?php echo e(request('status') === 'overdue' ? 'selected' : ''); ?>>Overdue Only</option>
             </select>
         </div>
     </div>
+
+    
+    <div id="borrowingsSearchMeta" class="mt-2" style="font-size:0.82rem; color:#6c757d; min-height:1.2rem;"></div>
 </div>
 
 
@@ -122,29 +127,29 @@ function openReturnModal(borrowingId) {
 (function () {
     'use strict';
 
-    var searchInput  = document.getElementById('borrowingsSearch');
-    var filterSelect = document.getElementById('borrowingsFilter');
-    var container    = document.getElementById('borrowingsTableContainer');
-    var spinner      = document.getElementById('borrowingsSpinner');
+    var searchInput   = document.getElementById('borrowingsSearch');
+    var statusSelect  = document.getElementById('borrowingsStatus');
+    var container     = document.getElementById('borrowingsTableContainer');
+    var spinner       = document.getElementById('searchSpinner');
+    var metaEl        = document.getElementById('borrowingsSearchMeta');
     var debounceTimer = null;
-    var currentCtrl   = null;
+    var currentCtrl   = null;   // AbortController for the in-flight request
 
-    var baseUrl = '<?php echo e(route('borrowings.index')); ?>';
+    var baseUrl = "<?php echo e(route('borrowings.index')); ?>";
 
-    // ── Core fetch ────────────────────────────────────────────────────────
+    // ── Core fetch function — identical pattern to Book History ──────────
     function fetchTable(extraParams) {
-        // Cancel the previous in-flight request (if any)
         if (currentCtrl) currentCtrl.abort();
         currentCtrl = new AbortController();
 
-        // Build query string from current input values
         var params = new URLSearchParams();
         var search = searchInput  ? searchInput.value.trim() : '';
-        var filter = filterSelect ? filterSelect.value       : '';
-        if (search) params.set('search', search);
-        if (filter) params.set('filter', filter);
+        var status = statusSelect ? statusSelect.value       : 'active';
 
-        // Pagination links pass their own params (page number, etc.)
+        if (search) params.set('search', search);
+        if (status) params.set('status', status);
+
+        // Allow pagination links to inject extra params (e.g. page number)
         if (extraParams) {
             extraParams.forEach(function (val, key) {
                 params.set(key, val);
@@ -153,7 +158,7 @@ function openReturnModal(borrowingId) {
 
         var url = baseUrl + (params.toString() ? '?' + params.toString() : '');
 
-        // Keep the address bar in sync so a browser refresh restores filters
+        // Sync the address bar so a browser refresh restores the exact view
         window.history.replaceState(null, '', url);
 
         // Visual feedback
@@ -161,9 +166,9 @@ function openReturnModal(borrowingId) {
         if (spinner)   spinner.style.display = '';
 
         fetch(url, {
-            signal: currentCtrl.signal,
+            signal:  currentCtrl.signal,
             headers: {
-                'X-Requested-With': 'XMLHttpRequest',   // ← triggers AJAX branch in controller
+                'X-Requested-With': 'XMLHttpRequest',
                 'Accept':           'application/json',
                 'X-CSRF-TOKEN':     document.querySelector('meta[name="csrf-token"]').content,
             }
@@ -177,10 +182,25 @@ function openReturnModal(borrowingId) {
                 container.innerHTML = data.table;
                 attachPaginationHandlers();
             }
+
+            // Update meta text
+            if (metaEl) {
+                var rows = container ? container.querySelectorAll('tbody tr').length : 0;
+                if (search) {
+                    metaEl.textContent = rows > 0
+                        ? rows + ' result(s) for "' + search + '"'
+                        : 'No results found for "' + search + '"';
+                } else {
+                    metaEl.textContent = '';
+                }
+            }
         })
         .catch(function (err) {
-            if (err.name === 'AbortError') return;  // cancelled intentionally — ignore
+            if (err.name === 'AbortError') return;
             console.error('[Borrowings] fetch error:', err);
+            if (metaEl) {
+                metaEl.innerHTML = '<span style="color:#dc3545;">⚠️ Failed to load results — check your connection and try again.</span>';
+            }
         })
         .finally(function () {
             if (container) container.classList.remove('is-loading');
@@ -189,24 +209,36 @@ function openReturnModal(borrowingId) {
         });
     }
 
-    // ── Input listeners ───────────────────────────────────────────────────
-
-    // Debounce typing: wait 400 ms after the last keystroke before fetching
+    // ── Input listeners — identical to Book History ───────────────────────
     if (searchInput) {
         searchInput.addEventListener('input', function () {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(function () { fetchTable(); }, 400);
         });
+
+        // Enter triggers immediately
+        searchInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(debounceTimer);
+                fetchTable();
+            }
+            // Escape clears the search and reloads
+            if (e.key === 'Escape') {
+                searchInput.value = '';
+                clearTimeout(debounceTimer);
+                if (metaEl) metaEl.textContent = '';
+                fetchTable();
+            }
+        });
     }
 
-    // Filter dropdown fires immediately on change (no debounce needed)
-    if (filterSelect) {
-        filterSelect.addEventListener('change', function () { fetchTable(); });
+    // Status dropdown — fires immediately on change, same as Book History
+    if (statusSelect) {
+        statusSelect.addEventListener('change', function () { fetchTable(); });
     }
 
-    // ── Pagination handler ────────────────────────────────────────────────
-    // Must be called after every container swap because the old links are
-    // replaced with new DOM nodes that have no listeners yet.
+    // ── Pagination — intercept link clicks after every container swap ─────
     function attachPaginationHandlers() {
         if (!container) return;
         container.querySelectorAll('[aria-label="Borrowings pagination"] a').forEach(function (link) {
@@ -216,21 +248,20 @@ function openReturnModal(borrowingId) {
                 var href   = this.getAttribute('href');
                 var parsed = new URL(href, window.location.origin);
 
-                // Sync the filter inputs with whatever the paginator link carries
+                // Sync inputs with whatever the paginator link carries
                 var pSearch = parsed.searchParams.get('search') || '';
-                var pFilter = parsed.searchParams.get('filter') || '';
+                var pStatus = parsed.searchParams.get('status') || 'active';
                 if (searchInput  && searchInput.value  !== pSearch) searchInput.value  = pSearch;
-                if (filterSelect && filterSelect.value !== pFilter) filterSelect.value = pFilter;
+                if (statusSelect && statusSelect.value !== pStatus) statusSelect.value = pStatus;
 
                 fetchTable(parsed.searchParams);
 
-                // Scroll the table back into view smoothly
+                // Scroll smoothly back to the top of the table
                 container.scrollIntoView({ behavior: 'smooth', block: 'start' });
             });
         });
     }
 
-    // Wire pagination on initial page load
     attachPaginationHandlers();
 
 }());
