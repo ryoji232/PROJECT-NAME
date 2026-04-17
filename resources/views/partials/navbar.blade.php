@@ -30,7 +30,7 @@ try {
         // Use the actual due_date column so all pages agree on what "overdue" means.
         // Fall back to 14-day window only when due_date is missing (legacy rows).
         if ($__row->due_date) {
-            $__dueAt      = Carbon::parse($__row->due_date)->endOfDay();
+            $__dueAt      = Carbon::parse($__row->due_date);
             $__remaining  = (int) $__now->diffInSeconds($__dueAt, false); // negative when past due
         } else {
             $__remaining  = (14 * 86400) - $__spent;

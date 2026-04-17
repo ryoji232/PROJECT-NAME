@@ -403,7 +403,7 @@ class BorrowingController extends Controller
                 $spentMins  = floor(($spent % 3600) / 60);
 
                 if ($row->due_date) {
-                    $dueAt     = \Carbon\Carbon::parse($row->due_date)->endOfDay();
+                    $dueAt     = \Carbon\Carbon::parse($row->due_date);
                     $remaining = (int) $now->diffInSeconds($dueAt, false);
                 } else {
                     $remaining = (14 * 86400) - $spent;
