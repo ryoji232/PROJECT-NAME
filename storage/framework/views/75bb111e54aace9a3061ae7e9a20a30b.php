@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Copy Sticker - {{ $copy->copy_number ?? 'Copy' }} — {{ $book->title }}</title>
+    <title>Copy Sticker - <?php echo e($copy->copy_number ?? 'Copy'); ?> — <?php echo e($book->title); ?></title>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="csrf-token" content="<?php echo e(csrf_token()); ?>">
     <style>
         body {
             font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
@@ -136,35 +136,36 @@
 </head>
 <body>
 
-@php
+<?php
     $copyBarcode  = \App\Models\BookCopy::normalizeBarcode($copy->barcode);
     $isCopyAvail  = ($copy->status === 'available');
-@endphp
+?>
 
-{{-- ── Sticker ──────────────────────────────────────────────────────────── --}}
+
 <div class="sticker">
-    <h3>{{ Str::limit(e($book->title), 40) }}</h3>
-    <p><strong>Author:</strong> {{ Str::limit(e($book->author), 25) }}</p>
+    <h3><?php echo e(Str::limit(e($book->title), 40)); ?></h3>
+    <p><strong>Author:</strong> <?php echo e(Str::limit(e($book->author), 25)); ?></p>
 
-    {{-- Copy label — makes it clear which physical copy this sticker belongs to --}}
-    <div class="copy-label">{{ $copy->copy_number ?? 'Copy' }}</div>
+    
+    <div class="copy-label"><?php echo e($copy->copy_number ?? 'Copy'); ?></div>
 
     <div class="barcode-box">
         <svg id="barcode"></svg>
-        <div class="barcode-number">{{ $copyBarcode }}</div>
+        <div class="barcode-number"><?php echo e($copyBarcode); ?></div>
     </div>
 
     <div class="book-info">
-        <p><strong>Copy:</strong> {{ $copy->copy_number ?? 'N/A' }} | <strong>Total copies:</strong> {{ $book->copies }}</p>
+        <p><strong>Copy:</strong> <?php echo e($copy->copy_number ?? 'N/A'); ?> | <strong>Total copies:</strong> <?php echo e($book->copies); ?></p>
         <p><strong>Status:</strong>
-            <span class="{{ $isCopyAvail ? 'status-available' : 'status-borrowed' }}">
-                {{ $isCopyAvail ? 'Available' : 'Borrowed' }}
+            <span class="<?php echo e($isCopyAvail ? 'status-available' : 'status-borrowed'); ?>">
+                <?php echo e($isCopyAvail ? 'Available' : 'Borrowed'); ?>
+
             </span>
         </p>
     </div>
 
     <p class="scan-instruction">
-        Scan to {{ $isCopyAvail ? 'borrow' : 'return' }} this copy<br>at library desk
+        Scan to <?php echo e($isCopyAvail ? 'borrow' : 'return'); ?> this copy<br>at library desk
     </p>
 
     <div class="button-group">
@@ -173,7 +174,7 @@
     </div>
 </div>
 
-{{-- ── Borrow Modal (shown when this copy is available) ─────────────────── --}}
+
 <div class="modal fade book-info-modal" id="bookInfoModal" tabindex="-1"
      aria-labelledby="bookInfoModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
@@ -185,30 +186,30 @@
             </div>
             <div class="modal-body">
                 <div class="book-info-card">
-                    <h4 class="book-info-title">{{ $book->title }}</h4>
-                    <p class="text-muted"><strong>Author:</strong> {{ $book->author }}</p>
+                    <h4 class="book-info-title"><?php echo e($book->title); ?></h4>
+                    <p class="text-muted"><strong>Author:</strong> <?php echo e($book->author); ?></p>
                     <div class="row mt-3">
                         <div class="col-6">
-                            <span class="badge bg-success">Copy: {{ $copy->copy_number ?? 'N/A' }}</span>
+                            <span class="badge bg-success">Copy: <?php echo e($copy->copy_number ?? 'N/A'); ?></span>
                         </div>
                         <div class="col-6">
-                            <span class="badge bg-info">Total: {{ $book->copies }}</span>
+                            <span class="badge bg-info">Total: <?php echo e($book->copies); ?></span>
                         </div>
                     </div>
                     <div class="mt-3">
-                        <small class="text-muted">Copy Barcode: <strong>{{ $copyBarcode }}</strong></small>
+                        <small class="text-muted">Copy Barcode: <strong><?php echo e($copyBarcode); ?></strong></small>
                     </div>
                     <div class="mt-2">
                         <span class="badge bg-success">✅ This copy is available for borrowing</span>
                     </div>
 
-                    {{-- Quick Borrow Form — posts to /borrow/by-barcode with the copy barcode --}}
+                    
                     <div class="mt-4 p-3 border rounded">
                         <h6 class="mb-3">Quick Borrow</h6>
                         <form id="borrowForm">
-                            @csrf
-                            {{-- The copy barcode uniquely identifies which physical copy is being borrowed --}}
-                            <input type="hidden" name="book_copy_barcode" value="{{ $copyBarcode }}">
+                            <?php echo csrf_field(); ?>
+                            
+                            <input type="hidden" name="book_copy_barcode" value="<?php echo e($copyBarcode); ?>">
                             <div class="row g-2">
                                 <div class="col-12">
                                     <input type="text" name="student_name"
@@ -240,7 +241,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary"
                         data-bs-dismiss="modal">Close</button>
-                <a href="{{ route('books.index') }}?highlight_book={{ $book->id }}"
+                <a href="<?php echo e(route('books.index')); ?>?highlight_book=<?php echo e($book->id); ?>"
                    class="btn btn-primary">View in Books</a>
                 <button type="button" class="btn btn-success"
                         onclick="window.print()">Print Sticker</button>
@@ -249,7 +250,7 @@
     </div>
 </div>
 
-{{-- ── Return Modal (shown when this copy is borrowed) ──────────────────── --}}
+
 <div class="modal fade return-modal" id="returnModal" tabindex="-1"
      aria-labelledby="returnModalLabel" aria-hidden="true"
      data-bs-backdrop="static" data-bs-keyboard="false">
@@ -263,21 +264,21 @@
             <div class="modal-body">
                 <div class="return-card">
                     <div class="text-center mb-4">
-                        <h4 class="book-info-title">{{ $book->title }}</h4>
-                        <p class="text-muted">by {{ $book->author }}</p>
+                        <h4 class="book-info-title"><?php echo e($book->title); ?></h4>
+                        <p class="text-muted">by <?php echo e($book->author); ?></p>
                     </div>
 
                     <div class="borrower-info">
                         <h6 class="fw-bold text-success">Copy Information</h6>
-                        <p class="mb-1"><strong>Copy:</strong> {{ $copy->copy_number ?? 'N/A' }}</p>
-                        <p class="mb-1"><strong>Copy Barcode:</strong> {{ $copyBarcode }}</p>
+                        <p class="mb-1"><strong>Copy:</strong> <?php echo e($copy->copy_number ?? 'N/A'); ?></p>
+                        <p class="mb-1"><strong>Copy Barcode:</strong> <?php echo e($copyBarcode); ?></p>
                         <p class="mb-1"><strong>Status:</strong>
                             <span class="status-borrowed">Currently Borrowed</span>
                         </p>
-                        <p class="mb-0"><strong>Book Copies:</strong> {{ $book->available_copies }} available / {{ $book->copies }} total</p>
+                        <p class="mb-0"><strong>Book Copies:</strong> <?php echo e($book->available_copies); ?> available / <?php echo e($book->copies); ?> total</p>
                     </div>
 
-                    {{-- Borrower details — loaded via AJAX when the modal opens --}}
+                    
                     <div id="borrowerDetails" class="borrower-info d-none">
                         <h6 class="fw-bold text-success">Current Borrower</h6>
                         <p class="mb-1"><strong>Name:</strong> <span id="borrowerName">—</span></p>
@@ -296,9 +297,9 @@
                         </label>
                     </div>
 
-                    {{-- The action is populated by JS once we know the borrowing ID --}}
+                    
                     <form id="quickReturnForm" method="POST">
-                        @csrf
+                        <?php echo csrf_field(); ?>
                         <div class="d-grid">
                             <button type="submit" id="quickReturnBtn"
                                     class="btn btn-success btn-lg" disabled>
@@ -316,7 +317,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary"
                         data-bs-dismiss="modal">Cancel</button>
-                <a href="{{ route('books.index') }}?highlight_book={{ $book->id }}"
+                <a href="<?php echo e(route('books.index')); ?>?highlight_book=<?php echo e($book->id); ?>"
                    class="btn btn-primary">View in Books</a>
             </div>
         </div>
@@ -327,7 +328,7 @@
 document.addEventListener('DOMContentLoaded', function () {
 
     // ── 1. Render the copy's unique barcode ──────────────────────────────
-    JsBarcode('#barcode', '{{ $copyBarcode }}', {
+    JsBarcode('#barcode', '<?php echo e($copyBarcode); ?>', {
         format:       'CODE128',
         width:        2,
         height:       50,
@@ -361,12 +362,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const formData = new FormData(this);
 
-            fetch('{{ route("borrow.by.barcode") }}', {
+            fetch('<?php echo e(route("borrow.by.barcode")); ?>', {
                 method:  'POST',
                 body:    formData,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN':     '{{ csrf_token() }}'
+                    'X-CSRF-TOKEN':     '<?php echo e(csrf_token()); ?>'
                 }
             })
             .then(r => r.json())
@@ -436,7 +437,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // unreturned borrowing for the book. Since each copy only has one
         // active borrowing at a time, and we're on the specific copy's page,
         // we also verify the book_copy_id matches our copy.
-        fetch('/books/{{ $book->id }}/copy/{{ $copy->id }}/current-borrowing', {
+        fetch('/books/<?php echo e($book->id); ?>/copy/<?php echo e($copy->id); ?>/current-borrowing', {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'Accept':           'application/json'
@@ -546,7 +547,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const scanned = barcodeBuffer.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
             barcodeBuffer = '';
 
-            if (scanned && scanned === '{{ $copyBarcode }}') {
+            if (scanned && scanned === '<?php echo e($copyBarcode); ?>') {
                 handleBarcodeScan();
             }
             return;
@@ -563,7 +564,7 @@ document.addEventListener('DOMContentLoaded', function () {
 // Opens the borrow modal when the copy is available,
 // or the return modal when it is currently borrowed.
 function handleBarcodeScan() {
-    const isCopyAvailable = {{ $isCopyAvail ? 'true' : 'false' }};
+    const isCopyAvailable = <?php echo e($isCopyAvail ? 'true' : 'false'); ?>;
 
     if (isCopyAvailable) {
         new bootstrap.Modal(document.getElementById('bookInfoModal')).show();
@@ -586,7 +587,7 @@ function downloadBarcode() {
         ctx.drawImage(img, 0, 0);
         const pngFile      = canvas.toDataURL('image/png');
         const downloadLink = document.createElement('a');
-        downloadLink.download = 'barcode-{{ $book->id }}-{{ $copy->copy_number ?? $copy->id }}.png';
+        downloadLink.download = 'barcode-<?php echo e($book->id); ?>-<?php echo e($copy->copy_number ?? $copy->id); ?>.png';
         downloadLink.href = pngFile;
         downloadLink.click();
     };
@@ -597,4 +598,4 @@ function downloadBarcode() {
 window.handleBarcodeScan = handleBarcodeScan;
 </script>
 </body>
-</html>
+</html><?php /**PATH C:\Users\Ryoji\PROJECT-NAME\resources\views/books/copy-sticker.blade.php ENDPATH**/ ?>

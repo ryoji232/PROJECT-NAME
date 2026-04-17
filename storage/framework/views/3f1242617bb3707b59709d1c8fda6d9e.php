@@ -145,7 +145,6 @@
             ?>
 
             
-            
             <div class="book-card <?php echo e($isAvailable ? '' : 'book-card--unavailable'); ?>"
                  data-book-id="<?php echo e($book->id); ?>"
                  data-title="<?php echo e(mb_strtolower($book->title)); ?>"
@@ -192,7 +191,6 @@
             </div>
 
             
-            
             <div class="modal fade" id="showModal<?php echo e($book->id); ?>" tabindex="-1"
                  aria-labelledby="showModalLabel<?php echo e($book->id); ?>" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -225,7 +223,12 @@
 
                             
                             <?php if($book->bookCopies->count() > 0): ?>
-                                <h6 class="fw-bold mb-2 mt-3">Book Copies</h6>
+                                <div class="d-flex align-items-center justify-content-between mb-2 mt-3">
+                                    <h6 class="fw-bold mb-0">Book Copies</h6>
+                                    <small class="text-muted" style="font-size:0.75rem;">
+                                        🏷️ Click <strong>Print</strong> on any copy to print its unique barcode sticker
+                                    </small>
+                                </div>
                                 <div class="show-modal-copies-grid">
                                     <?php $__currentLoopData = $book->bookCopies; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $copy): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                                         <div class="show-modal-copy
@@ -251,6 +254,13 @@
                                                      Borrowed
                                                 <?php endif; ?>
                                             </div>
+                                            
+                                            <a href="<?php echo e(route('books.copy.print', [$book->id, $copy->id])); ?>"
+                                               target="_blank"
+                                               class="show-modal-copy__print-btn"
+                                               title="Print barcode sticker for <?php echo e($copy->copy_number ?? 'this copy'); ?>">
+                                                🏷️ Print
+                                            </a>
                                         </div>
                                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                 </div>
@@ -313,15 +323,6 @@
 
                         <div class="modal-footer justify-content-between">
                             <div class="d-flex gap-2">
-                                
-                                <?php if($book->bookCopies->count() > 0): ?>
-                                    <a href="<?php echo e(route('books.barcode.sticker', $book->id)); ?>"
-                                       class="btn btn-sm btn-outline-secondary"
-                                       target="_blank">
-                                        🏷️ Print Stickers
-                                    </a>
-                                <?php endif; ?>
-
                                 
                                 <a href="<?php echo e(route('books.edit', $book->id)); ?>"
                                    class="btn btn-sm btn-outline-primary">
@@ -629,22 +630,53 @@
 /* ── Copy grid inside modal ───────────────────────────────────────────── */
 .show-modal-copies-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
     gap: 0.5rem;
 }
 .show-modal-copy {
     border-radius: 0.5rem;
-    padding: 0.5rem 0.4rem;
+    padding: 0.5rem 0.4rem 0.4rem;
     text-align: center;
     border: 1px solid #dee2e6;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
 }
 .show-modal-copy--available { background: #f0fdf4; border-color: #a5d6a7; }
 .show-modal-copy--borrowed  { background: #fffbeb; border-color: #fde68a; }
 .show-modal-copy--damaged   { background: #fef2f2; border-color: #fca5a5; }
 
-.show-modal-copy__number  { font-size: 0.72rem; font-weight: 700; color: #374151; margin-bottom: 0.15rem; }
-.show-modal-copy__barcode { font-size: 0.65rem; font-family: monospace; color: #6c757d; margin-bottom: 0.15rem; word-break: break-all; }
+.show-modal-copy__number  { font-size: 0.72rem; font-weight: 700; color: #374151; }
+.show-modal-copy__barcode { font-size: 0.65rem; font-family: monospace; color: #6c757d; word-break: break-all; }
 .show-modal-copy__status  { font-size: 0.68rem; font-weight: 600; }
+
+/* ── Per-copy print button ────────────────────────────────────────────── */
+.show-modal-copy__print-btn {
+    display: inline-block;
+    margin-top: 0.3rem;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    border-radius: 0.35rem;
+    text-decoration: none;
+    background: #fff;
+    border: 1px solid #adb5bd;
+    color: #495057;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.show-modal-copy__print-btn:hover {
+    background: #198754;
+    border-color: #198754;
+    color: #fff;
+    text-decoration: none;
+}
+/* Prevent the print button click from bubbling up to the modal open trigger */
+.show-modal-copy__print-btn:focus {
+    outline: 2px solid #198754;
+    outline-offset: 1px;
+}
 
 /* ── Borrow form section ──────────────────────────────────────────────── */
 .show-modal-borrow-section {
@@ -682,7 +714,7 @@
     .book-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; }
     .book-card { padding: 1rem 0.8rem 0.8rem; }
     .book-card__icon { font-size: 2rem; }
-    .show-modal-copies-grid { grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); }
+    .show-modal-copies-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
 }
 </style>
 <?php $__env->stopPush(); ?>
@@ -700,17 +732,16 @@
  *  2. Load borrowing history lazily when a show-modal is first opened.
  *  3. Handle the borrow form AJAX submission inside the show-modal.
  *  4. Wire the "Confirm Borrow" footer button to the form inside the modal.
+ *  5. Stop print-button clicks from bubbling up and triggering the
+ *     book-card modal open (the card uses data-bs-toggle, so a click
+ *     anywhere on it opens the modal — we must stop propagation on
+ *     any link/button inside the modal itself).
  */
 
 (function () {
     'use strict';
 
     // ── 0. Live search ────────────────────────────────────────────────────
-    //
-    // Filters book cards and alpha-section headers as the user types.
-    // No server round-trip — all books are already in the DOM.
-    // Matches against data-title and data-author (lowercase, trimmed).
-    // Hides empty letter sections and their jumpbar links automatically.
 
     var searchInput  = document.getElementById('bookSearchInput');
     var searchClear  = document.getElementById('bookSearchClear');
@@ -722,7 +753,6 @@
         var raw   = searchInput ? searchInput.value : '';
         var query = raw.trim().toLowerCase();
 
-        // Toggle clear button
         if (searchClear) {
             if (query.length > 0) {
                 searchClear.classList.add('visible');
@@ -742,7 +772,6 @@
             if (match) totalVisible++;
         });
 
-        // Hide/show alpha sections and their jumpbar links
         var sections = document.querySelectorAll('.alpha-section');
         sections.forEach(function (section) {
             var letter         = section.getAttribute('data-letter');
@@ -750,7 +779,6 @@
             var hide           = visibleInGroup === 0;
             section.style.display = hide ? 'none' : '';
 
-            // Sync jumpbar link
             if (jumpbar && letter) {
                 var link = jumpbar.querySelector('[href="#alpha-' + letter + '"]');
                 if (link) {
@@ -760,12 +788,10 @@
             }
         });
 
-        // No-results message
         if (noResults) {
             noResults.style.display = (query !== '' && totalVisible === 0) ? '' : 'none';
         }
 
-        // Search meta text
         if (searchMeta) {
             if (query === '') {
                 searchMeta.textContent = '';
@@ -780,7 +806,6 @@
     if (searchInput) {
         searchInput.addEventListener('input', runSearch);
         searchInput.addEventListener('keydown', function (e) {
-            // Escape clears the search
             if (e.key === 'Escape') {
                 searchInput.value = '';
                 runSearch();
@@ -811,12 +836,6 @@
     }
 
     // ── 1b. Background repair sweep ──────────────────────────────────────
-    // On page load, silently repair any book that has no copy chips rendered.
-    // This creates missing book_copies rows and syncs available_copies for
-    // books that were inserted via raw SQL (bypassing Eloquent boot hooks).
-    // Each repair runs as a separate sequential fetch so the page stays
-    // responsive. We stagger them with a small delay to avoid hammering the
-    // server simultaneously.
     (function runBackgroundRepairs() {
         var cards = document.querySelectorAll('.book-card[data-book-id]');
         var booksNeedingRepair = [];
@@ -827,7 +846,6 @@
             if (!modal) return;
             var copiesGrid = modal.querySelector('.show-modal-copies-grid');
             var hasCopies  = copiesGrid && copiesGrid.children.length > 0;
-            // Also check if the card itself has no barcode chips
             var hasChips = card.querySelector('.book-card__barcodes') &&
                            card.querySelector('.book-card__barcode-chip');
             if (!hasCopies || !hasChips) {
@@ -839,30 +857,22 @@
 
         console.log('[Books] Background repair needed for', booksNeedingRepair.length, 'book(s)');
 
-        // Process one at a time with a small stagger
         booksNeedingRepair.forEach(function (bookId, idx) {
             setTimeout(function () {
                 var modal = document.getElementById('showModal' + bookId);
                 if (modal && !modal.dataset.repaired) {
                     repairAndRenderCopies(modal, bookId);
                 }
-            }, idx * 300); // 300 ms between each repair request
+            }, idx * 300);
         });
     }());
 
     // ── 2. On modal open: repair missing copies (if needed) + lazy-load history
-    // Uses historySection.dataset.loaded as the flag (instead of a closure
-    // variable) so that resetHistorySection() can clear it from outside and
-    // force a re-fetch after a successful borrow — without a page reload.
     document.querySelectorAll('[id^="showModal"]').forEach(function (modalEl) {
         var bookId = modalEl.id.replace('showModal', '');
         var historySection = document.getElementById('historySection' + bookId);
 
         modalEl.addEventListener('show.bs.modal', function () {
-            // ── 2a. Repair missing copies on first open ───────────────────
-            // If the server rendered zero copy chips (book was seeded via raw
-            // SQL and never got book_copies rows), call the repair endpoint
-            // once to create them, then re-render the copies section live.
             var copiesGrid = modalEl.querySelector('.show-modal-copies-grid');
             var hasCopies  = copiesGrid && copiesGrid.children.length > 0;
 
@@ -870,9 +880,7 @@
                 repairAndRenderCopies(modalEl, bookId);
             }
 
-            // ── 2b. Lazy-load history ─────────────────────────────────────
             if (!historySection) return;
-            // dataset.loaded === '1' means already fetched; anything else → fetch
             if (historySection.dataset.loaded === '1') return;
 
             var loadingEl = historySection.querySelector('.show-modal-history-loading');
@@ -938,7 +946,7 @@
 
                 contentEl.classList.remove('d-none');
                 if (loadingEl) loadingEl.classList.add('d-none');
-                historySection.dataset.loaded = '1'; // cleared by resetHistorySection() on borrow
+                historySection.dataset.loaded = '1';
             })
             .catch(function (err) {
                 if (contentEl) {
@@ -952,15 +960,7 @@
     });
 
     // ── 3a. Repair and render copies for books with missing book_copies ────
-    //
-    // Called on first modal open when no copy chips exist in the DOM.
-    // Hits POST /books/{id}/repair which creates missing BookCopy rows,
-    // reconciles available_copies, and returns the full copy list.
-    // Re-renders the copies grid, availability banner, card chips, and
-    // barcode index — all without a page reload.
-
     function repairAndRenderCopies(modalEl, bookId) {
-        // Mark immediately so concurrent rapid opens don't double-call
         modalEl.dataset.repaired = '1';
 
         fetch('/books/' + bookId + '/repair', {
@@ -978,18 +978,12 @@
             var newAvailable = parseInt(data.available_copies, 10);
             var newTotal     = parseInt(data.total_copies, 10);
 
-            // 1. Re-render the copies grid inside the modal
-            renderCopiesGrid(modalEl, data.copies);
-
-            // 2. Update the availability banner
+            renderCopiesGrid(modalEl, data.copies, bookId);
             updateModalBanner(modalEl, newAvailable, newTotal);
 
-            // 3. Show the borrow form if it was hidden due to 0 copies at render time
             if (newAvailable > 0) {
                 var borrowSection = modalEl.querySelector('.show-modal-borrow-section');
                 var confirmBtn    = modalEl.querySelector('.borrow-submit-btn');
-                // Only show if element exists; if it was never rendered (server saw 0
-                // copies), inject a minimal borrow form now.
                 if (!borrowSection) {
                     injectBorrowForm(modalEl, bookId);
                 } else {
@@ -998,10 +992,8 @@
                 if (confirmBtn) confirmBtn.style.display = '';
             }
 
-            // 4. Update the book card chips on the grid
             renderCardChips(bookId, data.copies);
 
-            // 5. Update the card counter
             var card = document.querySelector('.book-card[data-book-id="' + bookId + '"]');
             if (card) {
                 var availEl = card.querySelector('.book-card__copies-available');
@@ -1009,7 +1001,6 @@
                 updateCardBadge(card, newAvailable <= 0);
             }
 
-            // 6. Extend the global barcode index with the new copy barcodes
             if (!window.__barcodeBookIndex) window.__barcodeBookIndex = {};
             data.copies.forEach(function (copy) {
                 if (copy.barcode) {
@@ -1019,21 +1010,24 @@
         })
         .catch(function (err) {
             console.error('[Repair] Failed for book ' + bookId + ':', err);
-            // Reset the flag so the user can retry by reopening the modal
             delete modalEl.dataset.repaired;
         });
     }
 
-    // Build the copies grid HTML and inject it into the modal body
-    function renderCopiesGrid(modalEl, copies) {
-        // Find or create the copies grid container
+    // Build the copies grid HTML and inject it into the modal body.
+    // Now includes a per-copy 🏷️ Print button linking to books.copy.print.
+    // The bookId parameter is needed to build the correct print URL.
+    function renderCopiesGrid(modalEl, copies, bookId) {
         var grid = modalEl.querySelector('.show-modal-copies-grid');
 
         if (!grid) {
-            // The server rendered no copies section at all — build one
-            var heading = document.createElement('h6');
-            heading.className   = 'fw-bold mb-2 mt-3';
-            heading.textContent = 'Book Copies';
+            var heading = document.createElement('div');
+            heading.className   = 'd-flex align-items-center justify-content-between mb-2 mt-3';
+            heading.innerHTML   =
+                '<h6 class="fw-bold mb-0">Book Copies</h6>' +
+                '<small class="text-muted" style="font-size:0.75rem;">' +
+                    '🏷️ Click <strong>Print</strong> on any copy to print its unique barcode sticker' +
+                '</small>';
 
             grid = document.createElement('div');
             grid.className = 'show-modal-copies-grid';
@@ -1056,15 +1050,21 @@
                 ? '✅ Available'
                 : (copy.status === 'damaged' ? '🔧 Damaged' : '📤 Borrowed');
 
+            // Build the print URL: /books/{bookId}/copies/{copyId}/print
+            var printUrl = '/books/' + bookId + '/copies/' + copy.id + '/print';
+
             return '<div class="show-modal-copy ' + statusClass + '">' +
                        '<div class="show-modal-copy__number">'  + escHtml(copy.copy_number) + '</div>' +
                        '<div class="show-modal-copy__barcode">' + escHtml(copy.barcode)     + '</div>' +
                        '<div class="show-modal-copy__status">'  + statusIcon                + '</div>' +
+                       '<a href="' + printUrl + '" target="_blank" class="show-modal-copy__print-btn"' +
+                          ' title="Print barcode sticker for ' + escHtml(copy.copy_number) + '">' +
+                          '🏷️ Print' +
+                       '</a>' +
                    '</div>';
         }).join('');
     }
 
-    // Update or create the card-level barcode chips
     function renderCardChips(bookId, copies) {
         var card = document.querySelector('.book-card[data-book-id="' + bookId + '"]');
         if (!card) return;
@@ -1089,7 +1089,6 @@
         }).join('');
     }
 
-    // Update the availability banner text and colour
     function updateModalBanner(modalEl, newAvailable, newTotal) {
         var banner = modalEl.querySelector('.show-modal-availability');
         if (!banner) return;
@@ -1103,7 +1102,6 @@
         }
     }
 
-    // Update the card availability badge and dim class
     function updateCardBadge(card, noStock) {
         var badge = card.querySelector('.book-card__badge');
         if (badge) {
@@ -1119,13 +1117,10 @@
         }
     }
 
-    // Dynamically inject a borrow form for books that had 0 copies at render time
-    // (server-side if-isAvailable was false, so no form HTML was emitted)
     function injectBorrowForm(modalEl, bookId) {
         var modalBody = modalEl.querySelector('.modal-body');
         if (!modalBody) return;
 
-        // Borrow section
         var section       = document.createElement('div');
         section.className = 'show-modal-borrow-section mt-4';
         section.innerHTML =
@@ -1152,7 +1147,6 @@
 
         modalBody.appendChild(section);
 
-        // Confirm Borrow button in the footer
         var footer     = modalEl.querySelector('.modal-footer .d-flex.gap-2.align-items-center');
         var closeBtn   = footer ? footer.querySelector('[data-bs-dismiss="modal"]') : null;
         if (footer && closeBtn) {
@@ -1169,16 +1163,6 @@
     }
 
     // ── 3. Borrow form AJAX handler ───────────────────────────────────────
-    //
-    // On SUCCESS: updates the DOM in-place — no page reload.
-    //   • Availability banner (count + colour)
-    //   • Copy status chips inside the modal (first available → borrowed)
-    //   • Barcode chips on the card (first available → borrowed)
-    //   • Borrow form + Confirm button hidden when 0 copies remain
-    //   • Book card badge + counter updated
-    //   • Form fields cleared, history reset, modal closed, toastr shown
-    // On FAILURE: inline alert inside the modal — no reload.
-
     function submitBorrowForm(bookId) {
         var modal     = document.getElementById('showModal' + bookId);
         if (!modal) return;
@@ -1189,7 +1173,6 @@
 
         if (!form) return;
 
-        // Client-side validation
         var studentNameEl = form.querySelector('[name="student_name"]');
         var courseEl      = form.querySelector('[name="course"]');
         var sectionEl     = form.querySelector('[name="section"]');
@@ -1214,9 +1197,6 @@
             }
         })
         .then(function (r) {
-            // Always parse JSON regardless of HTTP status.
-            // If the body is not JSON (e.g. an HTML error page), surface a
-            // clear message instead of the generic catch fallback.
             return r.json().catch(function () {
                 throw new Error('Server returned a non-JSON response (HTTP ' + r.status + '). Check the Laravel log.');
             });
@@ -1228,20 +1208,14 @@
                 return;
             }
 
-            // ── Borrow succeeded ──────────────────────────────────────────
-            // Show the success toast first so the user sees confirmation
-            // even if any subsequent DOM update throws.
             toastr.success(data.message || 'Book borrowed successfully!');
 
-            // Close the modal before updating the DOM so the user sees the
-            // toast against the grid, not inside an open modal.
             try {
                 bootstrap.Modal.getOrCreateInstance(modal).hide();
             } catch (e) {
                 console.warn('[Borrow] Modal hide error:', e);
             }
 
-            // Update DOM — wrapped so a rendering bug never hides the toast
             try {
                 var newAvailable = (data.book && data.book.available_copies !== undefined)
                     ? parseInt(data.book.available_copies, 10) : null;
@@ -1258,34 +1232,27 @@
 
                 resetHistorySection(bookId);
             } catch (e) {
-                // DOM update failed but borrow already succeeded — log only
                 console.error('[Borrow] DOM update error:', e);
             }
         })
         .catch(function (err) {
-            // Only reached if the fetch itself failed (network error) or
-            // r.json() could not parse the response body.
             console.error('[Borrow] Fetch error:', err);
             showBorrowAlert(alertEl, 'danger', err.message || 'Network error. Please check your connection.');
             if (submitBtn) submitBtn.disabled = false;
         });
     }
 
-    // Update the book card on the grid after a successful borrow
     function updateBookCard(bookId, newAvailable, newTotal) {
         var card    = document.querySelector('.book-card[data-book-id="' + bookId + '"]');
         if (!card) return;
 
         var noStock = (newAvailable !== null && newAvailable <= 0);
 
-        // Copy counter
         var availEl = card.querySelector('.book-card__copies-available');
         if (availEl && newAvailable !== null) availEl.textContent = newAvailable;
 
-        // Reuse shared badge helper
         updateCardBadge(card, noStock);
 
-        // Flip the first available barcode chip to borrowed
         var firstAvailChip = card.querySelector('.book-card__barcode-chip--available');
         if (firstAvailChip) {
             firstAvailChip.classList.remove('book-card__barcode-chip--available');
@@ -1293,16 +1260,13 @@
         }
     }
 
-    // Update availability banner and copy chips inside the modal
     function updateModalBody(modal, bookId, newAvailable, newTotal) {
         var noStock = (newAvailable !== null && newAvailable <= 0);
 
-        // Reuse shared banner helper
         if (newAvailable !== null && newTotal !== null) {
             updateModalBanner(modal, newAvailable, newTotal);
         }
 
-        // Flip the first available copy chip to borrowed
         var firstAvailCopy = modal.querySelector('.show-modal-copy--available');
         if (firstAvailCopy) {
             firstAvailCopy.classList.remove('show-modal-copy--available');
@@ -1311,7 +1275,6 @@
             if (statusEl) statusEl.textContent = '📤 Borrowed';
         }
 
-        // Hide the borrow form and confirm button when no copies remain
         if (noStock) {
             var borrowSection = modal.querySelector('.show-modal-borrow-section');
             if (borrowSection) borrowSection.style.display = 'none';
@@ -1319,19 +1282,15 @@
             var confirmBtn = modal.querySelector('.borrow-submit-btn');
             if (confirmBtn) confirmBtn.style.display = 'none';
         } else {
-            // Copies still available — re-enable submit button for next borrow
             var confirmBtn2 = modal.querySelector('.borrow-submit-btn');
             if (confirmBtn2) confirmBtn2.disabled = false;
         }
     }
 
-    // Reset the history section so it re-fetches on the next modal open.
-    // Communicates with the show.bs.modal listener in section 2 via a
-    // data attribute flag on the history section element.
     function resetHistorySection(bookId) {
         var section = document.getElementById('historySection' + bookId);
         if (!section) return;
-        section.dataset.loaded = '';  // cleared flag triggers re-fetch
+        section.dataset.loaded = '';
         var loadingEl = section.querySelector('.show-modal-history-loading');
         var contentEl = section.querySelector('.show-modal-history-content');
         if (loadingEl) loadingEl.classList.remove('d-none');
@@ -1352,12 +1311,6 @@
     });
 
     // ── 5. Keyboard delegation for book cards (Enter / Space) ────────────
-    //
-    // Cards use data-bs-toggle so mouse clicks are handled natively by
-    // Bootstrap. We still need to handle Enter/Space for keyboard users
-    // because Bootstrap's data-bs-toggle only fires on real click events.
-    // The scanner's keydown listener runs at capture phase and calls
-    // window.openBookShowModal directly, so it is unaffected by this handler.
     document.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         var target = e.target;

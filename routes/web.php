@@ -293,11 +293,34 @@ Route::get('/books/{book}/copies', [BookCopyController::class, 'index']);
 Route::post('/books/{book}/copies/add', [BookCopyController::class, 'store']);
 Route::post('/books/scan-copy-barcode', [BookCopyController::class, 'scan']);
 
-// Printable copy sticker
+// Printable copy sticker — passes both $copy and $book so the blade
+// can show book-level info AND use the copy's unique barcode for borrow/return.
 Route::get('/books/{book}/copies/{copy}/print', function ($bookId, $copyId) {
     $copy = \App\Models\BookCopy::with('book')->findOrFail($copyId);
-    return view('books.copy-sticker', compact('copy'));
+    $book = $copy->book;
+    return view('books.copy-sticker', compact('copy', 'book'));
 })->name('books.copy.print');
+
+// Per-copy current-borrowing — returns the active (unreturned) borrowing
+// for a specific BookCopy. Used by the copy sticker page's return modal
+// to load borrower details and wire the return form to the correct record.
+Route::get('/books/{book}/copy/{copy}/current-borrowing', function ($bookId, $copyId) {
+    $borrowing = \App\Models\Borrowing::where('book_copy_id', $copyId)
+        ->whereNull('returned_at')
+        ->latest()
+        ->first();
+
+    return response()->json([
+        'success'   => true,
+        'borrowing' => $borrowing ? [
+            'id'           => $borrowing->id,
+            'student_name' => $borrowing->student_name,
+            'course'       => $borrowing->course,
+            'section'      => $borrowing->section,
+            'due_date'     => $borrowing->due_date,
+        ] : null,
+    ]);
+})->name('books.copy.current-borrowing');
 
 // DEV: Regenerate all BookCopy barcodes to the new short format (local only)
 Route::get('/dev/regenerate-copy-barcodes', function () {
