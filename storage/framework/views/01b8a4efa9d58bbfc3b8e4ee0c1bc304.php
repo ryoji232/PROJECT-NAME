@@ -106,18 +106,34 @@
 
         // ── Core: process a completed scan ──────────────────────────────────
         function processScan(raw) {
-            var code = raw.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
-            if (code.length < MIN_BARCODE_LEN) return;
+            var trimmed = raw.trim().toUpperCase();
 
-            // ── Numeric-only → Book-ID barcode ────────────────────────────
-            if (/^\d+$/.test(code)) {
-                var bookId = parseInt(code, 10);
-                if (bookId <= 0) return;
-                handleBookIdScan(bookId);
+            // ── Composite format "{bookId}-{copyId}" ──────────────────────
+            // New copy stickers encode both IDs separated by a hyphen.
+            // We must check this BEFORE stripping non-alphanumeric chars so
+            // the hyphen is preserved for the API call.
+            var compositeMatch = trimmed.match(/^(\d+)-(\d+)$/);
+            if (compositeMatch) {
+                handleCopyBarcodeScan(compositeMatch[1] + '-' + compositeMatch[2]);
                 return;
             }
 
-            // ── Alphanumeric → Copy barcode ───────────────────────────────
+            // Strip all non-alphanumeric for older barcode formats
+            var code = trimmed.replace(/[^A-Z0-9]/g, '');
+            if (code.length < MIN_BARCODE_LEN) return;
+
+            // ── Numeric-only → try copy-ID first, then book-ID ────────────
+            // Backward-compat: older stickers encoded only the numeric copy ID.
+            // We try /copies/scan/{n} first; if no copy is found, fall back to
+            // book-ID lookup so old book-level stickers still work.
+            if (/^\d+$/.test(code)) {
+                var numericId = parseInt(code, 10);
+                if (numericId <= 0) return;
+                handleNumericScan(numericId);
+                return;
+            }
+
+            // ── Alphanumeric → legacy copy barcode string ─────────────────
             // On the books page, app.js already handles this via the hidden
             // #barcodeScannerInput field — don't double-process.
             if (isBooksPageScannerActive()) {
@@ -129,7 +145,48 @@
             handleCopyBarcodeScan(code);
         }
 
-        // ── Handle a book-ID scan ────────────────────────────────────────────
+        // ── Handle a numeric scan — try copy ID first, then book ID ─────────
+        // Copy stickers print the copy's numeric id. Old book stickers print
+        // the book's numeric id. We try the copy endpoint first; if it finds
+        // a copy we act on that copy's status. If not, fall back to book lookup.
+        function handleNumericScan(numericId) {
+            fetch('/copies/scan/' + numericId, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept':           'application/json',
+                }
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success && data.copy) {
+                    // Found a copy — route by its status
+                    var copy   = data.copy;
+                    var bookId = copy.book ? copy.book.id : null;
+                    if (!bookId) { showScanError('Copy has no linked book.'); return; }
+
+                    if (copy.status === 'available') {
+                        if (typeof window.__openBorrowModalForBook === 'function') {
+                            window.__openBorrowModalForBook(bookId);
+                        }
+                    } else {
+                        if (typeof window.__openReturnModalForBook === 'function') {
+                            window.__openReturnModalForBook(bookId);
+                        }
+                    }
+                    return;
+                }
+
+                // No copy found — fall back to book-ID lookup (old book stickers)
+                handleBookIdScan(numericId);
+            })
+            .catch(function (err) {
+                console.error('[GlobalScanner] Numeric scan lookup failed:', err);
+                // On network error, still try the book lookup as a last resort
+                handleBookIdScan(numericId);
+            });
+        }
+
+        // ── Handle a book-ID scan (fallback for old book-level stickers) ─────
         function handleBookIdScan(bookId) {
             fetch('/books/' + bookId + '/scan-data', {
                 headers: {
@@ -140,7 +197,7 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (!data.success || !data.book) {
-                    showScanError('Book #' + bookId + ' not found.');
+                    showScanError('Item #' + bookId + ' not found.');
                     return;
                 }
 
@@ -160,7 +217,7 @@
             })
             .catch(function (err) {
                 console.error('[GlobalScanner] Book lookup failed:', err);
-                showScanError('Scanner error — could not look up book.');
+                showScanError('Scanner error — could not look up item.');
             });
         }
 

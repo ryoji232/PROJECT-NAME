@@ -56,36 +56,58 @@ class BookCopy extends Model
 
     /**
      * Find a BookCopy by scanned barcode value. Very tolerant of formats.
+     *
+     * Lookup priority:
+     *  1. Pure numeric string → look up by primary key (id).
+     *     The copy-sticker page encodes the copy's numeric ID so any
+     *     scanner can read it without character-set ambiguity.
+     *  2. Exact barcode string match (after normalisation).
+     *  3. Case-insensitive barcode match.
+     *  4. Whitespace-stripped barcode match.
      */
     public static function findByScannable($scanned)
     {
         if (!$scanned) {
             return null;
         }
-        
+
         $scanned = (string) $scanned;
-        
+
         // Clean the input: trim, uppercase, remove all non-alphanumeric
         $cleaned = strtoupper(preg_replace('/[^A-Z0-9]/i', '', trim($scanned)));
-        
+
+        if ($cleaned === '') {
+            return null;
+        }
+
+        // ── Priority 1: pure numeric → find by copy ID ────────────────────
+        // The printed sticker barcode encodes the numeric copy id directly,
+        // which every scanner reads reliably without CODE128 character-set issues.
+        if (ctype_digit($cleaned)) {
+            $copy = self::with('book')->find((int) $cleaned);
+            if ($copy) {
+                return $copy;
+            }
+        }
+
+        // Require at least 4 chars for barcode string lookups
         if (strlen($cleaned) < 4) {
             return null;
         }
-        
-        // Try exact match first
+
+        // ── Priority 2: exact barcode string match ────────────────────────
         $copy = self::where('barcode', $cleaned)->first();
         if ($copy) {
             return $copy;
         }
-        
-        // Try case-insensitive match
+
+        // ── Priority 3: case-insensitive match ────────────────────────────
         $copy = self::whereRaw('UPPER(barcode) = ?', [$cleaned])->first();
         if ($copy) {
             return $copy;
         }
-        
-        // Try partial match (in case there are hidden characters)
+
+        // ── Priority 4: whitespace-stripped match ─────────────────────────
         return self::whereRaw("UPPER(REPLACE(barcode, ' ', '')) = ?", [$cleaned])->first();
     }
 }
-

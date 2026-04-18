@@ -151,7 +151,10 @@
 
     <div class="barcode-box">
         <svg id="barcode"></svg>
-        <div class="barcode-number">{{ $copyBarcode }}</div>
+        {{-- The barcode encodes "{bookId}-{copyId}" — a composite key that unambiguously
+             ties this physical copy to its book. Pure digits + one hyphen are read
+             correctly by every scanner model. --}}
+        <div class="barcode-number">{{ $book->id }}-{{ $copy->id }}</div>
     </div>
 
     <div class="book-info">
@@ -326,8 +329,11 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    // ── 1. Render the copy's unique barcode ──────────────────────────────
-    JsBarcode('#barcode', '{{ $copyBarcode }}', {
+    // ── 1. Render the copy's barcode ─────────────────────────────────────
+    // Encode "{bookId}-{copyId}" — a composite key tying this physical copy
+    // to its book. The hyphen-separated format is unambiguous on every scanner
+    // and the /copies/scan endpoint resolves it by splitting on "-".
+    JsBarcode('#barcode', '{{ $book->id }}-{{ $copy->id }}', {
         format:       'CODE128',
         width:        2,
         height:       50,
@@ -543,10 +549,23 @@ document.addEventListener('DOMContentLoaded', function () {
         lastKeyTime = now;
 
         if (event.key === 'Enter') {
-            const scanned = barcodeBuffer.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+            const raw     = barcodeBuffer.trim().toUpperCase();
             barcodeBuffer = '';
 
-            if (scanned && scanned === '{{ $copyBarcode }}') {
+            // Check composite "{bookId}-{copyId}" BEFORE stripping hyphens
+            const compositeCode = '{{ $book->id }}-{{ $copy->id }}';
+            const legacyCode    = '{{ $copyBarcode }}';
+            const numericId     = '{{ $copy->id }}';
+
+            // Try composite match first (preserves hyphen)
+            if (raw === compositeCode) {
+                handleBarcodeScan();
+                return;
+            }
+
+            // Strip non-alphanumeric for legacy formats
+            const scanned = raw.replace(/[^A-Z0-9]/g, '');
+            if (scanned && (scanned === legacyCode || scanned === numericId)) {
                 handleBarcodeScan();
             }
             return;

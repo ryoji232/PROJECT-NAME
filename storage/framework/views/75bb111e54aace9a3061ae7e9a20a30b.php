@@ -151,7 +151,8 @@
 
     <div class="barcode-box">
         <svg id="barcode"></svg>
-        <div class="barcode-number"><?php echo e($copyBarcode); ?></div>
+        
+        <div class="barcode-number"><?php echo e($book->id); ?>-<?php echo e($copy->id); ?></div>
     </div>
 
     <div class="book-info">
@@ -327,8 +328,11 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
 
-    // ── 1. Render the copy's unique barcode ──────────────────────────────
-    JsBarcode('#barcode', '<?php echo e($copyBarcode); ?>', {
+    // ── 1. Render the copy's barcode ─────────────────────────────────────
+    // Encode "{bookId}-{copyId}" — a composite key tying this physical copy
+    // to its book. The hyphen-separated format is unambiguous on every scanner
+    // and the /copies/scan endpoint resolves it by splitting on "-".
+    JsBarcode('#barcode', '<?php echo e($book->id); ?>-<?php echo e($copy->id); ?>', {
         format:       'CODE128',
         width:        2,
         height:       50,
@@ -544,10 +548,23 @@ document.addEventListener('DOMContentLoaded', function () {
         lastKeyTime = now;
 
         if (event.key === 'Enter') {
-            const scanned = barcodeBuffer.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+            const raw     = barcodeBuffer.trim().toUpperCase();
             barcodeBuffer = '';
 
-            if (scanned && scanned === '<?php echo e($copyBarcode); ?>') {
+            // Check composite "{bookId}-{copyId}" BEFORE stripping hyphens
+            const compositeCode = '<?php echo e($book->id); ?>-<?php echo e($copy->id); ?>';
+            const legacyCode    = '<?php echo e($copyBarcode); ?>';
+            const numericId     = '<?php echo e($copy->id); ?>';
+
+            // Try composite match first (preserves hyphen)
+            if (raw === compositeCode) {
+                handleBarcodeScan();
+                return;
+            }
+
+            // Strip non-alphanumeric for legacy formats
+            const scanned = raw.replace(/[^A-Z0-9]/g, '');
+            if (scanned && (scanned === legacyCode || scanned === numericId)) {
                 handleBarcodeScan();
             }
             return;

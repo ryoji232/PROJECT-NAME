@@ -73,8 +73,29 @@ Route::middleware(['auth:librarian'])->group(function () {
     Route::post('/borrowing/{id}/process-return', [BorrowingController::class, 'processReturn'])->name('borrowing.process.return');
     
     // Copy Barcode Scanner API
+    // Handles three barcode formats:
+    //   1. "{bookId}-{copyId}"  — new composite format (copy stickers printed after this fix)
+    //   2. Pure numeric         — older stickers encoding only the copy id
+    //   3. Alphanumeric string  — legacy stickers with the base36 barcode string
     Route::get('/copies/scan/{code}', function ($code) {
-        $copy = \App\Models\BookCopy::with('book')->findByScannable($code);
+        $copy = null;
+
+        // ── Format 1: composite "{bookId}-{copyId}" ───────────────────────
+        // Split on "-" and validate both parts are numeric
+        if (preg_match('/^(\d+)-(\d+)$/', $code, $m)) {
+            $bookId = (int) $m[1];
+            $copyId = (int) $m[2];
+            // Must belong to the stated book — prevents cross-book mismatch
+            $copy = \App\Models\BookCopy::with('book')
+                ->where('id', $copyId)
+                ->where('book_id', $bookId)
+                ->first();
+        }
+
+        // ── Formats 2 & 3: fallback to existing findByScannable ──────────
+        if (! $copy) {
+            $copy = \App\Models\BookCopy::with('book')->findByScannable($code);
+        }
 
         if (! $copy) {
             return response()->json(['success' => false, 'message' => 'Copy not found'], 404);
@@ -295,9 +316,13 @@ Route::post('/books/scan-copy-barcode', [BookCopyController::class, 'scan']);
 
 // Printable copy sticker — passes both $copy and $book so the blade
 // can show book-level info AND use the copy's unique barcode for borrow/return.
+// Load $book by $bookId directly and verify the copy belongs to this book,
+// so a mismatched copy ID in the URL can never display the wrong title on the sticker.
 Route::get('/books/{book}/copies/{copy}/print', function ($bookId, $copyId) {
-    $copy = \App\Models\BookCopy::with('book')->findOrFail($copyId);
-    $book = $copy->book;
+    $book = \App\Models\Book::findOrFail($bookId);
+    $copy = \App\Models\BookCopy::where('id', $copyId)
+                                ->where('book_id', $bookId)
+                                ->firstOrFail();
     return view('books.copy-sticker', compact('copy', 'book'));
 })->name('books.copy.print');
 
