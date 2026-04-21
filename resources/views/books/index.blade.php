@@ -6,6 +6,11 @@
     Each book card carries data-barcode attributes for every copy
     so the barcode scanner in app.js can map a scanned copy
     barcode → book id → open the correct showModal.
+
+    DRAG & DROP: Cards are draggable between letter sections.
+    Drag a card and drop it onto any letter section's grid area.
+    The section counts update live. Empty sections are hidden.
+    This is a purely visual/UI reorder — it does not affect the DB.
 --}}
 @extends('layouts.app')
 
@@ -138,7 +143,7 @@
                     <span class="alpha-section__letter">{{ $letter }}</span>
                     <span class="alpha-section__count">{{ $letterBooks->count() }} {{ Str::plural('book', $letterBooks->count()) }}</span>
                 </div>
-                <div class="book-grid">
+                <div class="book-grid" data-letter="{{ $letter }}">
 
         @foreach($letterBooks as $book)
             @php
@@ -161,12 +166,16 @@
                  data-title="{{ mb_strtolower($book->title) }}"
                  data-author="{{ mb_strtolower($book->author) }}"
                  data-copy-barcodes="{{ json_encode($copyBarcodes) }}"
+                 draggable="true"
                  data-bs-toggle="modal"
                  data-bs-target="#showModal{{ $book->id }}"
                  role="button"
                  tabindex="0"
                  aria-label="Open details for {{ $book->title }}"
                  aria-haspopup="dialog">
+
+                {{-- Drag handle indicator --}}
+                <span class="book-card__drag-handle" title="Drag to reorder">⠿</span>
 
                 {{-- Availability badge --}}
                 <span class="book-card__badge {{ $isAvailable ? 'book-card__badge--available' : 'book-card__badge--unavailable' }}">
@@ -543,6 +552,31 @@
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
     gap: 1.25rem;
     margin-bottom: 0;
+    /* Drop zone: minimum height so empty sections still accept drops */
+    min-height: 80px;
+    border-radius: 0.6rem;
+    transition: background 0.15s, box-shadow 0.15s;
+}
+
+/* ── Drop zone active highlight ───────────────────────────────────────── */
+.book-grid.drag-over {
+    background: rgba(25, 135, 84, 0.06);
+    box-shadow: inset 0 0 0 2px #198754;
+}
+
+/* ── Empty grid placeholder ───────────────────────────────────────────── */
+.book-grid--empty-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+    border: 2px dashed #c3e6cb;
+    border-radius: 0.6rem;
+    color: #a5d6a7;
+    font-size: 0.82rem;
+    font-style: italic;
+    pointer-events: none; /* don't block drops on the grid itself */
+    grid-column: 1 / -1;
 }
 
 /* ── Book card ────────────────────────────────────────────────────────── */
@@ -553,7 +587,7 @@
     border-radius: 1rem;
     padding: 1.4rem 1.2rem 1rem;
     cursor: pointer;
-    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, opacity 0.15s ease;
     text-align: center;
     outline: none;
     user-select: none;
@@ -567,6 +601,46 @@
 .book-card:focus { box-shadow: 0 0 0 3px rgba(25, 135, 84, 0.3); }
 .book-card--unavailable { opacity: 0.72; }
 .book-card--unavailable:hover { border-color: #dc3545; box-shadow: 0 6px 18px rgba(220,53,69,0.1); }
+
+/* ── Dragging state ───────────────────────────────────────────────────── */
+.book-card.is-dragging {
+    opacity: 0.35;
+    transform: scale(0.97);
+    cursor: grabbing;
+    box-shadow: none;
+    border-style: dashed;
+    pointer-events: none;
+}
+
+/* ── Drag handle (visible on hover) ──────────────────────────────────── */
+.book-card__drag-handle {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.6rem;
+    font-size: 0.9rem;
+    color: #c3e6cb;
+    line-height: 1;
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 0.15s;
+    pointer-events: none; /* let the card handle click/drag */
+    user-select: none;
+}
+.book-card:hover .book-card__drag-handle {
+    opacity: 1;
+    color: #6c757d;
+}
+.book-card.is-dragging .book-card__drag-handle { opacity: 0; }
+
+/* ── Drop-target insertion indicator ─────────────────────────────────── */
+.book-card.drop-before {
+    box-shadow: -4px 0 0 0 #198754;
+    border-radius: 1rem;
+}
+.book-card.drop-after {
+    box-shadow: 4px 0 0 0 #198754;
+    border-radius: 1rem;
+}
 
 /* ── Card badge ───────────────────────────────────────────────────────── */
 .book-card__badge {
@@ -588,7 +662,6 @@
 .book-card__title {
     font-size: 1rem; font-weight: 700; color: #2c3e50;
     margin: 0 0 0.2rem; line-height: 1.3;
-    /* two-line clamp */
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -680,7 +753,6 @@
     color: #fff;
     text-decoration: none;
 }
-/* Prevent the print button click from bubbling up to the modal open trigger */
 .show-modal-copy__print-btn:focus {
     outline: 2px solid #198754;
     outline-offset: 1px;
@@ -743,15 +815,17 @@
  *  3. Handle the borrow form AJAX submission inside the show-modal.
  *  4. Wire the "Confirm Borrow" footer button to the form inside the modal.
  *  5. Stop print-button clicks from bubbling up and triggering the
- *     book-card modal open (the card uses data-bs-toggle, so a click
- *     anywhere on it opens the modal — we must stop propagation on
- *     any link/button inside the modal itself).
+ *     book-card modal open.
+ *  6. DRAG & DROP: Allow cards to be dragged between letter sections.
+ *     The reorder is purely visual (UI-only, not persisted to the DB).
  */
 
 (function () {
     'use strict';
 
-    // ── 0. Live search ────────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+    // 0. LIVE SEARCH
+    // ══════════════════════════════════════════════════════════════════════
 
     var searchInput  = document.getElementById('bookSearchInput');
     var searchClear  = document.getElementById('bookSearchClear');
@@ -832,7 +906,10 @@
         });
     }
 
-    // ── 1. Expose barcode → bookId lookup map for the scanner ────────────
+    // ══════════════════════════════════════════════════════════════════════
+    // 1. BARCODE INDEX
+    // ══════════════════════════════════════════════════════════════════════
+
     var grid = document.getElementById('bookGrid');
     if (grid) {
         try {
@@ -845,7 +922,10 @@
         }
     }
 
-    // ── 1b. Background repair sweep ──────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+    // 1b. BACKGROUND REPAIR SWEEP
+    // ══════════════════════════════════════════════════════════════════════
+
     (function runBackgroundRepairs() {
         var cards = document.querySelectorAll('.book-card[data-book-id]');
         var booksNeedingRepair = [];
@@ -865,8 +945,6 @@
 
         if (booksNeedingRepair.length === 0) return;
 
-        console.log('[Books] Background repair needed for', booksNeedingRepair.length, 'book(s)');
-
         booksNeedingRepair.forEach(function (bookId, idx) {
             setTimeout(function () {
                 var modal = document.getElementById('showModal' + bookId);
@@ -877,7 +955,10 @@
         });
     }());
 
-    // ── 2. On modal open: repair missing copies (if needed) + lazy-load history
+    // ══════════════════════════════════════════════════════════════════════
+    // 2. MODAL OPEN: REPAIR MISSING COPIES + LAZY-LOAD HISTORY
+    // ══════════════════════════════════════════════════════════════════════
+
     document.querySelectorAll('[id^="showModal"]').forEach(function (modalEl) {
         var bookId = modalEl.id.replace('showModal', '');
         var historySection = document.getElementById('historySection' + bookId);
@@ -969,7 +1050,10 @@
         });
     });
 
-    // ── 3a. Repair and render copies for books with missing book_copies ────
+    // ══════════════════════════════════════════════════════════════════════
+    // 3a. REPAIR AND RENDER COPIES
+    // ══════════════════════════════════════════════════════════════════════
+
     function repairAndRenderCopies(modalEl, bookId) {
         modalEl.dataset.repaired = '1';
 
@@ -1024,9 +1108,6 @@
         });
     }
 
-    // Build the copies grid HTML and inject it into the modal body.
-    // Now includes a per-copy 🏷️ Print button linking to books.copy.print.
-    // The bookId parameter is needed to build the correct print URL.
     function renderCopiesGrid(modalEl, copies, bookId) {
         var grid = modalEl.querySelector('.show-modal-copies-grid');
 
@@ -1060,7 +1141,6 @@
                 ? '✅ Available'
                 : (copy.status === 'damaged' ? '🔧 Damaged' : '📤 Borrowed');
 
-            // Build the print URL: /books/{bookId}/copies/{copyId}/print
             var printUrl = '/books/' + bookId + '/copies/' + copy.id + '/print';
 
             return '<div class="show-modal-copy ' + statusClass + '">' +
@@ -1172,7 +1252,10 @@
         }
     }
 
-    // ── 3. Borrow form AJAX handler ───────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+    // 3. BORROW FORM AJAX
+    // ══════════════════════════════════════════════════════════════════════
+
     function submitBorrowForm(bookId) {
         var modal     = document.getElementById('showModal' + bookId);
         if (!modal) return;
@@ -1313,14 +1396,20 @@
         alertEl.textContent = message;
     }
 
-    // ── 4. Wire footer "Confirm Borrow" buttons ───────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+    // 4. WIRE FOOTER "CONFIRM BORROW" BUTTONS
+    // ══════════════════════════════════════════════════════════════════════
+
     document.querySelectorAll('.borrow-submit-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
             submitBorrowForm(this.getAttribute('data-book-id'));
         });
     });
 
-    // ── 5. Keyboard delegation for book cards (Enter / Space) ────────────
+    // ══════════════════════════════════════════════════════════════════════
+    // 5. KEYBOARD DELEGATION FOR BOOK CARDS
+    // ══════════════════════════════════════════════════════════════════════
+
     document.addEventListener('keydown', function (e) {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         var target = e.target;
@@ -1331,7 +1420,211 @@
         }
     });
 
-    // ── Helper: tiny HTML escaper ─────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════
+    // 6. DRAG AND DROP — Cards can be dragged between letter sections
+    // ══════════════════════════════════════════════════════════════════════
+    //
+    // Design decisions:
+    //  • draggable="true" is set on every .book-card in Blade.
+    //  • Drop zones are the .book-grid elements inside each .alpha-section.
+    //  • Dropping a card into a new section moves the card DOM node.
+    //  • Section counts (e.g. "4 books") update automatically after each drop.
+    //  • Empty sections show a dashed placeholder and hide their jumpbar link.
+    //  • Clicking still opens the modal — drag is only triggered when the
+    //    mouse moves 5+ px (the browser's native drag threshold).
+    //  • The modal data-bs-toggle on the card is preserved; we cancel the
+    //    Bootstrap modal open when a real drag completes via a flag.
+    //
+    (function initDragAndDrop() {
+
+        var draggedCard    = null;   // the card element being dragged
+        var draggedFromGrid = null;  // the .book-grid it came from
+        var didDrag        = false;  // true once dragstart fires (vs. a click)
+
+        // ── Utility: refresh the count badge on a section ─────────────────
+        function refreshSectionCount(sectionEl) {
+            if (!sectionEl) return;
+            var grid   = sectionEl.querySelector('.book-grid');
+            var count  = grid ? grid.querySelectorAll('.book-card').length : 0;
+            var badge  = sectionEl.querySelector('.alpha-section__count');
+            if (badge) badge.textContent = count + ' ' + (count === 1 ? 'book' : 'books');
+
+            // Show/hide the empty-section placeholder
+            refreshEmptyPlaceholder(grid, count);
+
+            // Show/hide the section itself and its jumpbar link
+            var letter = sectionEl.getAttribute('data-letter');
+            sectionEl.style.display = count === 0 ? 'none' : '';
+            if (jumpbar && letter) {
+                var link = jumpbar.querySelector('[href="#alpha-' + letter + '"]');
+                if (link) {
+                    if (count === 0) link.classList.add('alpha-hidden');
+                    else             link.classList.remove('alpha-hidden');
+                }
+            }
+        }
+
+        // ── Utility: manage the "Drop cards here" placeholder ─────────────
+        function refreshEmptyPlaceholder(gridEl, count) {
+            if (!gridEl) return;
+            var existing = gridEl.querySelector('.book-grid--empty-placeholder');
+            if (count === 0) {
+                if (!existing) {
+                    var ph       = document.createElement('div');
+                    ph.className = 'book-grid--empty-placeholder';
+                    ph.textContent = 'Drop cards here';
+                    gridEl.appendChild(ph);
+                }
+            } else {
+                if (existing) existing.remove();
+            }
+        }
+
+        // ── Utility: find the nearest .book-card sibling for insertion ─────
+        // Returns { card, before } where before=true means insert BEFORE card.
+        function getDragAfterElement(gridEl, clientX, clientY) {
+            var cards = Array.from(gridEl.querySelectorAll('.book-card:not(.is-dragging)'));
+
+            return cards.reduce(function (closest, child) {
+                var box    = child.getBoundingClientRect();
+                // Use centre of each card
+                var centreX = box.left + box.width  / 2;
+                var centreY = box.top  + box.height / 2;
+                // Compare by row first (Y axis), then by column (X axis)
+                var dy = clientY - centreY;
+                var dx = clientX - centreX;
+                // Simple distance to decide "before or after"
+                var offset = dy < 0 ? dy : (Math.abs(dy) < box.height / 2 ? dx : dy);
+
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                }
+                return closest;
+            }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+        }
+
+        // ── Wire cards: dragstart / dragend ───────────────────────────────
+        function wireCard(card) {
+            card.addEventListener('dragstart', function (e) {
+                didDrag       = true;
+                draggedCard   = card;
+                draggedFromGrid = card.closest('.book-grid');
+
+                // Use a semi-transparent ghost — set after a tick so the
+                // original card is still visible for the ghost capture.
+                setTimeout(function () {
+                    card.classList.add('is-dragging');
+                }, 0);
+
+                e.dataTransfer.effectAllowed = 'move';
+                // Store the book-id so cross-section drop can read it
+                e.dataTransfer.setData('text/plain', card.getAttribute('data-book-id'));
+            });
+
+            card.addEventListener('dragend', function () {
+                card.classList.remove('is-dragging');
+                // Clean up any lingering indicators on all grids
+                document.querySelectorAll('.book-grid').forEach(function (g) {
+                    g.classList.remove('drag-over');
+                });
+                document.querySelectorAll('.book-card.drop-before, .book-card.drop-after').forEach(function (c) {
+                    c.classList.remove('drop-before', 'drop-after');
+                });
+
+                draggedCard     = null;
+                draggedFromGrid = null;
+
+                // Reset the flag after the click-event cycle completes
+                setTimeout(function () { didDrag = false; }, 0);
+            });
+
+            // Suppress the Bootstrap modal trigger when a real drag occurred
+            card.addEventListener('click', function (e) {
+                if (didDrag) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    didDrag = false;
+                }
+            }, true); // capture phase, runs before Bootstrap's listener
+        }
+
+        // ── Wire grids: dragover / dragleave / drop ────────────────────────
+        function wireGrid(gridEl) {
+            gridEl.addEventListener('dragover', function (e) {
+                if (!draggedCard) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                gridEl.classList.add('drag-over');
+
+                // Clear previous insertion indicators
+                gridEl.querySelectorAll('.drop-before, .drop-after').forEach(function (c) {
+                    c.classList.remove('drop-before', 'drop-after');
+                });
+
+                // Show insertion caret on the nearest card
+                var after = getDragAfterElement(gridEl, e.clientX, e.clientY);
+                if (after) {
+                    after.classList.add('drop-before');
+                }
+            });
+
+            gridEl.addEventListener('dragleave', function (e) {
+                // Only fire if the mouse actually left this grid (not a child)
+                if (!gridEl.contains(e.relatedTarget)) {
+                    gridEl.classList.remove('drag-over');
+                    gridEl.querySelectorAll('.drop-before, .drop-after').forEach(function (c) {
+                        c.classList.remove('drop-before', 'drop-after');
+                    });
+                }
+            });
+
+            gridEl.addEventListener('drop', function (e) {
+                e.preventDefault();
+                gridEl.classList.remove('drag-over');
+
+                // Clear insertion indicators
+                gridEl.querySelectorAll('.drop-before, .drop-after').forEach(function (c) {
+                    c.classList.remove('drop-before', 'drop-after');
+                });
+
+                if (!draggedCard) return;
+                if (draggedCard.closest('.book-grid') === gridEl) {
+                    // Reorder within the same section
+                    var after = getDragAfterElement(gridEl, e.clientX, e.clientY);
+                    if (after && after !== draggedCard) {
+                        gridEl.insertBefore(draggedCard, after);
+                    } else if (!after) {
+                        gridEl.appendChild(draggedCard);
+                    }
+                } else {
+                    // Move to a different section
+                    var afterEl = getDragAfterElement(gridEl, e.clientX, e.clientY);
+                    if (afterEl) {
+                        gridEl.insertBefore(draggedCard, afterEl);
+                    } else {
+                        gridEl.appendChild(draggedCard);
+                    }
+
+                    // Refresh counts on both old and new sections
+                    if (draggedFromGrid) {
+                        refreshSectionCount(draggedFromGrid.closest('.alpha-section'));
+                    }
+                    refreshSectionCount(gridEl.closest('.alpha-section'));
+                }
+            });
+        }
+
+        // ── Bootstrap all existing cards and grids ─────────────────────────
+        document.querySelectorAll('.book-card[data-book-id]').forEach(wireCard);
+        document.querySelectorAll('.book-grid').forEach(wireGrid);
+
+        // ── Expose so the repair/inject code can wire newly added cards ────
+        window.__wireDragCard = wireCard;
+        window.__wireDragGrid = wireGrid;
+
+    }()); // end initDragAndDrop
+
+    // ── HELPER: tiny HTML escaper ──────────────────────────────────────────
     function escHtml(str) {
         return String(str || '')
             .replace(/&/g, '&amp;')

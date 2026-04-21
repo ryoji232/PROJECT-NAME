@@ -58,42 +58,78 @@ class BookController extends Controller
     }
 
     // Update a book
+    // ─────────────────────────────────────────────────────────────────────
+    // The "copies_to_add" field represents how many NEW copies the librarian
+    // wants to ADD to the existing total — it does NOT replace the current
+    // total.  The hard cap is 10 copies per book.
+    // ─────────────────────────────────────────────────────────────────────
     public function update(Request $request, $id)
     {
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'author' => 'required|string|max:255',
-            'copies' => 'nullable|integer|min:1|max:10',
+            'title'         => 'required|string|max:255',
+            'author'        => 'required|string|max:255',
+            'copies_to_add' => 'nullable|integer|min:0|max:10',
         ]);
 
-        $book = Book::findOrFail($id);
+        $book        = Book::findOrFail($id);
+        $copiesToAdd = (int) ($validated['copies_to_add'] ?? 0);
 
-        if (isset($validated['copies'])) {
-            $newCopies = (int) $validated['copies'];
-            $borrowed = $book->borrowings()->whereNull('returned_at')->count();
-            $validated['available_copies'] = max(0, $newCopies - $borrowed);
-        }
+        DB::transaction(function () use ($book, $copiesToAdd, $validated) {
 
-        $book->update($validated);
+            // ── 1. Update title / author ──────────────────────────────────
+            $book->update([
+                'title'  => $validated['title'],
+                'author' => $validated['author'],
+            ]);
+
+            if ($copiesToAdd <= 0) {
+                return; // nothing more to do
+            }
+
+            // ── 2. Enforce the 10-copy cap ────────────────────────────────
+            $currentTotal = (int) $book->copies;
+            $maxAllowed   = 10;
+            $canAdd       = max(0, $maxAllowed - $currentTotal);
+            $actualAdd    = min($copiesToAdd, $canAdd);
+
+            if ($actualAdd <= 0) {
+                return; // already at max — silently skip
+            }
+
+            // ── 3. Create the new BookCopy rows ───────────────────────────
+            $book->createCopies($actualAdd);   // appends after existing copies
+
+            // ── 4. Update the denormalised counters on the book row ───────
+            $newTotal          = $currentTotal + $actualAdd;
+            $actualAvailable   = BookCopy::where('book_id', $book->id)
+                                         ->where('status', 'available')
+                                         ->count();
+
+            $book->update([
+                'copies'           => $newTotal,
+                'available_copies' => $actualAvailable,
+            ]);
+        });
 
         return redirect()->route('books.index')->with('success', 'Book updated successfully!');
     }
 
     // Delete a book
     public function destroy($id)
-{
-    $book = Book::findOrFail($id);
+    {
+        $book = Book::findOrFail($id);
 
-    foreach ($book->bookCopies as $copy) {  // ← FIX: use the relationship
-        $copy->borrowings()->delete();
-        $copy->delete();
+        foreach ($book->bookCopies as $copy) {
+            $copy->borrowings()->delete();
+            $copy->delete();
+        }
+
+        $book->borrowings()->delete();
+        $book->delete();
+
+        return redirect()->back()->with('success', 'Book deleted successfully!');
     }
 
-    $book->borrowings()->delete();
-    $book->delete();
-
-    return redirect()->back()->with('success', 'Book deleted successfully!');
-}
     // Get current active borrowing for this book
     public function getBookStatus($bookId)
     {
@@ -262,7 +298,6 @@ class BookController extends Controller
         }
     }
 
-    // Return full borrow history for a book as JSON (used by AJAX history modal)
     // =========================================================
     // REPAIR — Fix a single book's copies and available_copies
     // Called via AJAX from the book modal when copies are missing.

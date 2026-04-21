@@ -1,7 +1,6 @@
-@extends('layouts.app')
-@section('title', 'Edit Book')
+<?php $__env->startSection('title', 'Edit Book'); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 <style>
     body {
         background: #e9f7ef;
@@ -113,13 +112,13 @@
     }
 </style>
 
-@php
+<?php
     $currentCopies   = (int) $book->copies;
     $maxAllowed      = 10;
     $canAddMore      = $currentCopies < $maxAllowed;
     $maxCanAdd       = $maxAllowed - $currentCopies;   // how many the librarian can still add
     $activeBorrowings = $book->borrowings()->whereNull('returned_at')->count();
-@endphp
+?>
 
 <div class="container py-5">
     <div class="card shadow-lg">
@@ -127,91 +126,91 @@
             <h4 class="mb-0">Edit Book</h4>
         </div>
         <div class="card-body">
-            <form action="{{ route('books.update', $book->id) }}" method="POST" id="editBookForm">
-                @csrf
-                @method('PUT')
+            <form action="<?php echo e(route('books.update', $book->id)); ?>" method="POST" id="editBookForm">
+                <?php echo csrf_field(); ?>
+                <?php echo method_field('PUT'); ?>
 
-                {{-- Title --}}
+                
                 <div class="mb-3">
                     <label class="form-label">Book Title</label>
                     <input type="text" name="title" class="form-control"
-                           value="{{ old('title', $book->title) }}" required>
+                           value="<?php echo e(old('title', $book->title)); ?>" required>
                 </div>
 
-                {{-- Author --}}
+                
                 <div class="mb-3">
                     <label class="form-label">Author</label>
                     <input type="text" name="author" class="form-control"
-                           value="{{ old('author', $book->author) }}" required>
+                           value="<?php echo e(old('author', $book->author)); ?>" required>
                 </div>
 
-                {{-- Add Copies --}}
+                
                 <div class="mb-3">
 
-                    {{-- Current copies summary --}}
+                    
                     <div class="copies-info-box">
                         <div class="d-flex align-items-center gap-3">
                             <div>
-                                <div class="copies-count">{{ $currentCopies }}</div>
+                                <div class="copies-count"><?php echo e($currentCopies); ?></div>
                                 <div class="copies-breakdown">current total copies</div>
                             </div>
                             <div style="border-left:2px solid #a5d6a7;padding-left:1rem;">
-                                <div><strong>{{ $book->available_copies }}</strong> available</div>
-                                <div><strong>{{ $activeBorrowings }}</strong> borrowed</div>
+                                <div><strong><?php echo e($book->available_copies); ?></strong> available</div>
+                                <div><strong><?php echo e($activeBorrowings); ?></strong> borrowed</div>
                             </div>
-                            @if($currentCopies >= $maxAllowed)
+                            <?php if($currentCopies >= $maxAllowed): ?>
                                 <div class="ms-auto">
                                     <span class="badge"
                                           style="background:#f8d7da;color:#721c24;border:1px solid #f5c2c7;font-size:.8rem;padding:.35rem .7rem;">
-                                        🔒 Maximum reached ({{ $maxAllowed }})
+                                        🔒 Maximum reached (<?php echo e($maxAllowed); ?>)
                                     </span>
                                 </div>
-                            @else
+                            <?php else: ?>
                                 <div class="ms-auto text-muted" style="font-size:.82rem;">
-                                    Can add up to <strong>{{ $maxCanAdd }}</strong> more
+                                    Can add up to <strong><?php echo e($maxCanAdd); ?></strong> more
                                 </div>
-                            @endif
+                            <?php endif; ?>
                         </div>
                     </div>
 
-                    @if($canAddMore)
+                    <?php if($canAddMore): ?>
                         <label class="form-label fw-semibold">
                             Add Copies
-                            <span class="text-muted fw-normal" style="font-size:.85rem;">(max {{ $maxAllowed }} total)</span>
+                            <span class="text-muted fw-normal" style="font-size:.85rem;">(max <?php echo e($maxAllowed); ?> total)</span>
                         </label>
                         <input type="number"
                                name="copies_to_add"
                                id="copiesToAdd"
                                class="form-control"
-                               value="{{ old('copies_to_add', 0) }}"
+                               value="<?php echo e(old('copies_to_add', 0)); ?>"
                                min="0"
-                               max="{{ $maxCanAdd }}"
+                               max="<?php echo e($maxCanAdd); ?>"
                                placeholder="How many copies to add (0 = no change)"
-                               data-current="{{ $currentCopies }}"
-                               data-max="{{ $maxAllowed }}">
+                               data-current="<?php echo e($currentCopies); ?>"
+                               data-max="<?php echo e($maxAllowed); ?>">
 
-                        {{-- Live preview --}}
+                        
                         <div id="copyPreview"></div>
 
-                        {{-- Max-reached warning --}}
+                        
                         <div id="maxCopiesAlert">
-                            ⚠️ Maximum of {{ $maxAllowed }} copies reached — capped automatically.
+                            ⚠️ Maximum of <?php echo e($maxAllowed); ?> copies reached — capped automatically.
                         </div>
 
                         <small class="text-muted d-block mt-1">
                             Enter how many <strong>additional</strong> copies to add. Leave at 0 to keep the current count.
                         </small>
-                    @else
-                        {{-- Hidden field so the controller sees 0 additions --}}
+                    <?php else: ?>
+                        
                         <input type="hidden" name="copies_to_add" value="0">
                         <div class="alert alert-warning py-2 px-3 mb-0" style="font-size:.88rem;">
-                            🔒 This book already has the maximum of <strong>{{ $maxAllowed }}</strong> copies. No more copies can be added.
+                            🔒 This book already has the maximum of <strong><?php echo e($maxAllowed); ?></strong> copies. No more copies can be added.
                         </div>
-                    @endif
+                    <?php endif; ?>
                 </div>
 
                 <div class="d-flex justify-content-between">
-                    <a href="{{ route('books.index') }}" class="btn btn-secondary">⬅ Back</a>
+                    <a href="<?php echo e(route('books.index')); ?>" class="btn btn-secondary">⬅ Back</a>
                     <button type="submit" class="btn btn-success">Update Book</button>
                 </div>
             </form>
@@ -276,4 +275,5 @@
 }());
 </script>
 
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\Ryoji\PROJECT-NAME\resources\views/books/edit.blade.php ENDPATH**/ ?>
